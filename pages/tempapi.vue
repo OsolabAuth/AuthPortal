@@ -10,17 +10,27 @@ const headers = ref([
   { key: '', value: '' }
 ])
 
+const bodyType = ref<'json' | 'form'>('json')
+
 const body = ref('')
+
+const formBody = ref([
+  { key: '', value: '' }
+])
 
 const loading = ref(false)
 const response = ref<any>(null)
 const error = ref('')
 
-const addRow = (target: typeof queryParams.value) => {
+const addRow = (
+  target: { key: string; value: string }[]
+) => {
   target.push({ key: '', value: '' })
 }
 
-const toObject = (list: { key: string; value: string }[]) => {
+const toObject = (
+  list: { key: string; value: string }[]
+) => {
   return Object.fromEntries(
     list.filter(v => v.key).map(v => [v.key, v.value])
   )
@@ -39,9 +49,11 @@ const sendRequest = async () => {
       body:
         method.value === 'GET'
           ? undefined
-          : body.value
-            ? JSON.parse(body.value)
-            : undefined
+          : bodyType.value === 'json'
+            ? body.value
+              ? JSON.parse(body.value)
+              : undefined
+            : toObject(formBody.value)
     })
 
     response.value = res
@@ -111,13 +123,50 @@ const sendRequest = async () => {
     </section>
 
     <section v-if="method !== 'GET'">
-      <h3>Body (JSON)</h3>
+      <h3>Body</h3>
 
-      <textarea
-        v-model="body"
-        rows="10"
-        placeholder='{"name":"test"}'
-      />
+      <div class="body-type">
+        <label>
+          <input
+            v-model="bodyType"
+            type="radio"
+            value="json"
+          />
+          JSON
+        </label>
+
+        <label>
+          <input
+            v-model="bodyType"
+            type="radio"
+            value="form"
+          />
+          Form
+        </label>
+      </div>
+
+      <template v-if="bodyType === 'json'">
+        <textarea
+          v-model="body"
+          rows="10"
+          placeholder='{"name":"test"}'
+        />
+      </template>
+
+      <template v-else>
+        <div
+          v-for="(item, index) in formBody"
+          :key="index"
+          class="param-row"
+        >
+          <input v-model="item.key" placeholder="key" />
+          <input v-model="item.value" placeholder="value" />
+        </div>
+
+        <button @click="addRow(formBody)">
+          + Add Form Field
+        </button>
+      </template>
     </section>
 
     <section>
@@ -156,11 +205,21 @@ const sendRequest = async () => {
   margin-bottom: 8px;
 }
 
+.body-type {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
 input,
 select,
 textarea,
 button {
   padding: 8px;
+}
+
+textarea {
+  width: 100%;
 }
 
 pre {
