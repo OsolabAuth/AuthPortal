@@ -295,6 +295,15 @@ input {
   color: var(--muted);
 }
 
+.term-link {
+  display: inline-block;
+  margin-top: 6px;
+}
+
+.term-url-note {
+  color: var(--warning);
+}
+
 .scope-box {
   border-radius: 20px;
   padding: 18px;

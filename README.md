@@ -17,6 +17,25 @@ The current AuthFoundation API still owns the OIDC flow and accepts form posts. 
 
 `/` also receives the authorization redirect. When `code` and `state` are present, it validates `state`, exchanges the authorization code at `/token`, stores tokens in `localStorage`, calls `/userinfo`, stores UserInfo in `localStorage`, and removes the callback query from the browser URL. This is a scaffolding behavior for development; production authorization state should be tightened before storing long-lived tokens in the browser.
 
+## Screen Flow (Portal)
+
+Expected screen-side flow with the current API implementation:
+
+1. User opens `/` and clicks login.
+2. Portal calls `GET /authorize` with `x-auth-ui-session-mode: body`.
+3. Portal stores `session_id` in `localStorage` and moves to `redirect_url` (normally `/login`).
+4. User submits `/login`; Portal posts `session_id`, `email`, `password` to `POST /login`.
+5. If account creation is needed, user moves to `/signup`, posts to `POST /Signup/Account`, and runs verify URL when returned.
+6. After successful login, API redirects to `/terms` when consent is required.
+7. `/terms` loads `POST /terms/list`, shows terms (`term_id`, `version`, `term_url`, `required`) and requested scopes.
+8. User submits `POST /terms` with `accepted` and repeated `term_ids`.
+9. API redirects back to `/` with `code` and `state`; Portal exchanges code at `POST /token`, then calls `GET /userinfo`.
+10. Portal stores token and UserInfo in `localStorage`, clears authorization `session_id`, and removes callback query parameters from the URL.
+
+Notes:
+- `session_id` is not appended to portal URLs.
+- Portal screen actions always send `session_id` in `application/x-www-form-urlencoded` body.
+
 ## Local Run
 
 ```powershell
@@ -72,6 +91,7 @@ The portal top page builds this URL and calls it with `x-auth-ui-session-mode: b
 - `POST /terms/list`
 - `Content-Type: application/x-www-form-urlencoded`
 - Body: `session_id`
+- Response terms item: `term_id`, `title`, `version`, `term_url`, `required`
 
 - `POST /terms`
 - `Content-Type: application/x-www-form-urlencoded`

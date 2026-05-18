@@ -33,6 +33,16 @@
           <span>
             <strong>{{ term.title }}</strong>
             <small>v{{ term.version }} / {{ term.required ? "必須" : "任意" }}</small>
+            <a
+              v-if="term.term_url"
+              :href="term.term_url"
+              class="text-link term-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              規約を開く
+            </a>
+            <small v-else class="term-url-note">規約URL未設定</small>
           </span>
         </label>
       </section>
@@ -74,6 +84,23 @@ const scopes = ref<string[]>([]);
 const acceptedTermIds = ref<string[]>([]);
 const lastResponse = ref<unknown>(null);
 
+function toSafeTermUrl(rawUrl: string | undefined) {
+  if (!rawUrl) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return undefined;
+    }
+
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 async function loadTerms() {
   if (!sessionId.value) {
     return;
@@ -91,7 +118,10 @@ async function loadTerms() {
       return;
     }
 
-    terms.value = result.data.terms || [];
+    terms.value = (result.data.terms || []).map((term) => ({
+      ...term,
+      term_url: toSafeTermUrl(term.term_url)
+    }));
     scopes.value = result.data.scopes || [];
     acceptedTermIds.value = terms.value
       .filter((term) => term.required)

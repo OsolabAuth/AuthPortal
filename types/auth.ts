@@ -44,6 +44,7 @@ export type TermItem = {
   term_id: string;
   title: string;
   version: string;
+  term_url?: string;
   required: boolean;
 };
 
