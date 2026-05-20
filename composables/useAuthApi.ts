@@ -83,20 +83,18 @@ export function useAuthApi() {
   };
 
   const login = async (input: { sessionId: string; email: string; password: string }) => {
-    const passwordHash = await sha256HexUpper(input.password);
     return await postForm<LoginResponse>("/login", {
       session_id: input.sessionId,
       email: input.email,
-      password: passwordHash
+      password: input.password
     });
   };
 
   const signup = async (input: { sessionId: string; email: string; password: string }) => {
-    const passwordHash = await sha256HexUpper(input.password);
     return await postForm<SignupResponse>("/Signup/Account", {
       session_id: input.sessionId,
       email: input.email,
-      password: passwordHash
+      password: input.password
     });
   };
 
