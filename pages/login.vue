@@ -1,15 +1,8 @@
 <template>
   <AuthShell
     title="ログイン"
-    description="Osolab の認証セッションを使ってログインします。"
+    description="AuthFoundation の認可セッション Cookie に紐づけて、ユーザーを認証します。"
   >
-    <template #context>
-      <p class="session-pill">
-        session_id:
-        <code>{{ sessionId || "未指定" }}</code>
-      </p>
-    </template>
-
     <form class="stack" @submit.prevent="submit">
       <FormField
         id="email"
@@ -27,27 +20,25 @@
         label="パスワード"
         type="password"
         autocomplete="current-password"
-        placeholder="password"
+        placeholder="Password123"
         required
       />
 
-      <p v-if="!sessionId" class="message message-warning">
-        session_id がありません。OIDC の /authorize から遷移した画面で使う想定です。
+      <p class="message message-info">
+        認可セッションは Auth API が発行した HttpOnly Cookie から読み取ります。
       </p>
 
       <p v-if="errorMessage" class="message message-error">{{ errorMessage }}</p>
       <p v-if="notice" class="message message-info">{{ notice }}</p>
 
       <button class="button" type="submit" :disabled="pending">
-        {{ pending ? "送信中..." : "ログインする" }}
+        {{ pending ? "ログイン中..." : "ログイン" }}
       </button>
 
-      <NuxtLink class="text-link" :to="appendSessionQuery('/signup')">
+      <NuxtLink class="text-link" to="/signup">
         アカウントを作成する
       </NuxtLink>
     </form>
-
-    <ResponseDebug :payload="lastResponse" />
   </AuthShell>
 </template>
 
@@ -55,14 +46,12 @@
 useHead({ title: "Login" });
 
 const api = useAuthApi();
-const { sessionId, appendSessionQuery } = useAuthorizationSession();
 
 const email = ref("");
 const password = ref("");
 const pending = ref(false);
 const errorMessage = ref("");
 const notice = ref("");
-const lastResponse = ref<unknown>(null);
 
 async function submit() {
   pending.value = true;
@@ -71,12 +60,9 @@ async function submit() {
 
   try {
     const result = await api.login({
-      sessionId: sessionId.value,
       email: email.value.trim(),
       password: password.value
     });
-
-    lastResponse.value = result.data;
 
     if (result.ok && result.data.result === "redirect" && result.location) {
       window.location.assign(result.location);
@@ -84,7 +70,12 @@ async function submit() {
     }
 
     if (result.ok && result.data.result === "logged_in") {
-      notice.value = result.data.message || "ログインしました。認可セッションは見つかりませんでした。";
+      notice.value = result.data.message || "ログインしました。認可セッションがないため、この画面で完了しています。";
+      return;
+    }
+
+    if (result.ok && result.data.result === "redirect") {
+      errorMessage.value = "ログインは成功しましたが、リダイレクト先がレスポンスに含まれていません。";
       return;
     }
 

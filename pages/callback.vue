@@ -1,7 +1,7 @@
 <template>
   <AuthShell
     title="Callback"
-    description="AuthFoundation から戻った認可コードを検証し、PKCE でトークンへ交換します。"
+    description="認可コードを検証し、PKCE でトークンへ交換します。通常はトップページがこの処理を担当します。"
   >
     <div class="stack">
       <p v-if="status === 'processing'" class="message message-info">
@@ -9,7 +9,7 @@
       </p>
 
       <p v-if="status === 'success'" class="message message-info">
-        ログインが完了しました。トークンはこのブラウザの localStorage に保存しています。
+        ログインが完了しました。UserInfo を取得済みです。
       </p>
 
       <p v-if="status === 'error'" class="message message-error">
@@ -17,7 +17,7 @@
       </p>
 
       <section v-if="tokenSummary" class="token-summary">
-        <h2>Token summary</h2>
+        <h2>Token</h2>
         <dl>
           <div>
             <dt>token_type</dt>
@@ -40,29 +40,26 @@
           v-if="status === 'success'"
           class="button button-secondary"
           type="button"
-          @click="clearLocalTokens"
+          @click="signOut"
         >
-          ローカルトークンをクリア
+          ログアウト
         </button>
       </div>
-
-      <ResponseDebug v-if="tokenResponse" :payload="tokenResponse" />
     </div>
   </AuthShell>
 </template>
 
 <script setup lang="ts">
-import type { TokenResponse } from "~/types/auth";
+import type { StoredTokens } from "~/composables/usePortalAuthFlow";
 
 useHead({ title: "Auth Callback" });
 
 const route = useRoute();
-const api = useAuthApi();
 const flow = usePortalAuthFlow();
 
 const status = ref<"processing" | "success" | "error">("processing");
 const errorMessage = ref("");
-const tokenResponse = ref<TokenResponse | null>(null);
+const tokenResponse = ref<StoredTokens | null>(null);
 
 const tokenSummary = computed(() => {
   const token = tokenResponse.value;
@@ -90,11 +87,14 @@ function fail(message: string) {
   errorMessage.value = message;
 }
 
-function clearLocalTokens() {
-  flow.clearTokens();
-  tokenResponse.value = null;
-  status.value = "error";
-  errorMessage.value = "ローカルトークンをクリアしました。再度ログインしてください。";
+async function signOut() {
+  try {
+    await flow.signOut(false);
+  } finally {
+    tokenResponse.value = null;
+    status.value = "error";
+    errorMessage.value = "ログアウトしました。";
+  }
 }
 
 onMounted(async () => {
@@ -107,48 +107,17 @@ onMounted(async () => {
   const code = firstQueryValue(route.query.code);
   const state = firstQueryValue(route.query.state);
   if (!code || !state) {
-    fail("認可コードまたは state がありません。ポータルトップからログインを開始してください。");
-    return;
-  }
-
-  const storedFlow = flow.readStoredFlow();
-  if (!storedFlow) {
-    fail("保存済みの認可リクエストが見つかりません。ポータルトップからログインをやり直してください。");
-    return;
-  }
-
-  if (storedFlow.state !== state) {
-    fail("state が一致しません。認可レスポンスを破棄しました。");
+    fail("認可コードまたは state がありません。トップページからログインを開始してください。");
     return;
   }
 
   try {
-    const result = await api.exchangeCode({
-      clientId: flow.clientId.value,
-      code,
-      codeVerifier: storedFlow.codeVerifier,
-      redirectUri: storedFlow.redirectUri
-    });
-
-    tokenResponse.value = result.data;
-    if (!result.ok || !result.data.access_token) {
-      fail(result.data.message || `トークン交換に失敗しました。HTTP ${result.status}`);
-      return;
-    }
-
-    flow.saveTokens({
-      access_token: result.data.access_token,
-      refresh_token: result.data.refresh_token,
-      id_token: result.data.id_token,
-      token_type: result.data.token_type,
-      expires_in: result.data.expires_in,
-      refresh_token_expires_in: result.data.refresh_token_expires_in,
-      scope: result.data.scope
-    });
-    flow.clearStoredFlow();
+    const result = await flow.completeAuthorization({ code, state });
+    tokenResponse.value = result.tokens;
     status.value = "success";
+    window.history.replaceState({}, document.title, window.location.pathname);
   } catch (error) {
-    fail(error instanceof Error ? error.message : "トークン交換中に不明なエラーが発生しました。");
+    fail(error instanceof Error ? error.message : "トークン交換中にエラーが発生しました。");
   }
 });
 </script>

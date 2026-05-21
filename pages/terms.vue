@@ -1,18 +1,11 @@
 <template>
   <AuthShell
-    title="利用規約への同意"
-    description="クライアントが要求した規約とスコープを確認します。"
+    title="同意確認"
+    description="クライアントが要求した利用規約とスコープを確認します。"
   >
-    <template #context>
-      <p class="session-pill">
-        session_id:
-        <code>{{ sessionId || "未指定" }}</code>
-      </p>
-    </template>
-
     <div class="stack">
-      <p v-if="!sessionId" class="message message-warning">
-        session_id がありません。ログイン後または /authorize からの遷移で使います。
+      <p class="message message-info">
+        認可セッションは Auth API の Cookie から読み取ります。Cookie が期限切れの場合は、トップからログインをやり直してください。
       </p>
 
       <p v-if="pending" class="message message-info">規約を読み込み中...</p>
@@ -47,15 +40,25 @@
         </label>
       </section>
 
+      <section v-else-if="!pending && !errorMessage" class="flow-box flow-box-muted">
+        <h2>Terms</h2>
+        <p>このクライアントに表示対象の規約はありません。</p>
+      </section>
+
       <section v-if="scopes.length" class="scope-box">
         <h2>要求スコープ</h2>
         <div class="scope-list">
-          <span v-for="scope in scopes" :key="scope" class="scope-chip">{{ scope }}</span>
+          <span v-for="scopeItem in scopes" :key="scopeItem" class="scope-chip">{{ scopeItem }}</span>
         </div>
       </section>
 
       <div class="button-row">
-        <button class="button" type="button" :disabled="pending || submitting" @click="submit(true)">
+        <button
+          class="button"
+          type="button"
+          :disabled="pending || submitting || requiredMissing"
+          @click="submit(true)"
+        >
           {{ submitting ? "送信中..." : "同意して続ける" }}
         </button>
         <button class="button button-danger" type="button" :disabled="submitting" @click="submit(false)">
@@ -63,8 +66,6 @@
         </button>
       </div>
     </div>
-
-    <ResponseDebug :payload="lastResponse" />
   </AuthShell>
 </template>
 
@@ -74,7 +75,6 @@ import type { TermItem } from "~/types/auth";
 useHead({ title: "Terms" });
 
 const api = useAuthApi();
-const { sessionId } = useAuthorizationSession();
 
 const pending = ref(false);
 const submitting = ref(false);
@@ -82,7 +82,10 @@ const errorMessage = ref("");
 const terms = ref<TermItem[]>([]);
 const scopes = ref<string[]>([]);
 const acceptedTermIds = ref<string[]>([]);
-const lastResponse = ref<unknown>(null);
+
+const requiredMissing = computed(() => terms.value
+  .filter((term) => term.required)
+  .some((term) => !acceptedTermIds.value.includes(term.term_id)));
 
 function toSafeTermUrl(rawUrl: string | undefined) {
   if (!rawUrl) {
@@ -102,16 +105,11 @@ function toSafeTermUrl(rawUrl: string | undefined) {
 }
 
 async function loadTerms() {
-  if (!sessionId.value) {
-    return;
-  }
-
   pending.value = true;
   errorMessage.value = "";
 
   try {
-    const result = await api.fetchTerms(sessionId.value);
-    lastResponse.value = result.data;
+    const result = await api.fetchTerms();
 
     if (!result.ok) {
       errorMessage.value = result.data.message || `規約の取得に失敗しました。status=${result.status}`;
@@ -139,21 +137,23 @@ async function submit(accepted: boolean) {
 
   try {
     const result = await api.submitTerms({
-      sessionId: sessionId.value,
       accepted,
       termIds: accepted ? acceptedTermIds.value : []
     });
-
-    lastResponse.value = result.data;
 
     if (result.ok && result.data.result === "redirect" && result.location) {
       window.location.assign(result.location);
       return;
     }
 
-    errorMessage.value = result.data.message || result.data.error || `規約同意の送信に失敗しました。status=${result.status}`;
+    if (result.ok && result.data.result === "redirect") {
+      errorMessage.value = "同意結果は送信されましたが、リダイレクト先がレスポンスに含まれていません。";
+      return;
+    }
+
+    errorMessage.value = result.data.message || result.data.error || `同意結果の送信に失敗しました。status=${result.status}`;
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "規約同意の送信でエラーが発生しました。";
+    errorMessage.value = error instanceof Error ? error.message : "同意結果の送信でエラーが発生しました。";
   } finally {
     submitting.value = false;
   }

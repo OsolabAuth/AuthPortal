@@ -21,13 +21,26 @@ export type LoginResponse = {
   raw?: string;
 };
 
-export type SignupResponse = {
+export type SignupEmailResponse = {
   StatusCode?: string;
   Message?: string;
-  VerifyUrl?: string;
   statusCode?: string;
   message?: string;
-  verifyUrl?: string;
+  raw?: string;
+};
+
+export type SignupVerifyResponse = {
+  StatusCode?: string;
+  Message?: string;
+  statusCode?: string;
+  message?: string;
+  raw?: string;
+};
+
+export type SignupAccountResponse = {
+  result?: "redirect" | "error";
+  response_code?: string;
+  message?: string;
   raw?: string;
 };
 
@@ -52,6 +65,14 @@ export type TermsSubmitResponse = {
   result?: "redirect" | "error";
   error?: string;
   response_code?: string;
+  message?: string;
+  raw?: string;
+};
+
+export type LogoutResponse = {
+  response_code?: string;
+  result?: "logged_out" | "already_logged_out" | "error";
+  logout_all?: boolean;
   message?: string;
   raw?: string;
 };

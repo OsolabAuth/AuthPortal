@@ -1,48 +1,71 @@
 <template>
   <AuthShell
-    title="Osolab Portal"
-    description="Start the AuthFoundation authorization code flow, or receive the authorization redirect and complete token exchange."
+    title="OIDC Portal"
+    description="AuthFoundation の Authorization Code + PKCE フローを開始し、認可コードをトークンへ交換します。"
   >
     <template #context>
       <div class="portal-metrics">
-        <span>Client</span>
+        <span>client_id</span>
         <code>{{ clientId }}</code>
-        <span>Flow</span>
-        <strong>Authorization Code + PKCE</strong>
+        <span>scope</span>
+        <strong>{{ scope }}</strong>
+        <span>redirect_uri</span>
+        <code>{{ redirectUri }}</code>
       </div>
     </template>
 
     <div class="stack">
-      <p v-if="storedTokens" class="message message-info">
-        Token is stored in localStorage. Scope: {{ storedTokens.scope || "unknown" }}
-      </p>
-
       <p v-if="authStatus === 'processing'" class="message message-info">
-        Processing authorization response...
+        認可レスポンスを処理しています。
       </p>
 
       <p v-if="authStatus === 'success'" class="message message-info">
-        Authorization completed. Token and UserInfo are stored in localStorage.
+        ログインが完了しました。アクセストークンで UserInfo を取得済みです。
+      </p>
+
+      <p v-if="notice" class="message message-info">
+        {{ notice }}
       </p>
 
       <p v-if="authError" class="message message-error">
         {{ authError }}
       </p>
 
-      <button class="button" type="button" :disabled="pending" @click="startLogin">
-        {{ pending ? "Processing..." : "Login with Osolab account" }}
-      </button>
+      <div class="button-row">
+        <button class="button" type="button" :disabled="pending" @click="startLogin">
+          {{ pending ? "処理中..." : "OIDCログインを開始" }}
+        </button>
 
-      <button
-        v-if="storedTokens"
-        class="button button-secondary"
-        type="button"
-        @click="clearLocalTokens"
-      >
-        Clear local token and UserInfo
-      </button>
+        <button
+          v-if="storedTokens"
+          class="button button-secondary"
+          type="button"
+          :disabled="pending"
+          @click="signOut"
+        >
+          ログアウト
+        </button>
+      </div>
 
-      <section v-if="storedUserInfo" class="flow-box flow-box-muted">
+      <section v-if="storedTokens" class="token-summary">
+        <h2>Session</h2>
+        <dl>
+          <div>
+            <dt>token_type</dt>
+            <dd>{{ storedTokens.token_type || "Bearer" }}</dd>
+          </div>
+          <div>
+            <dt>scope</dt>
+            <dd>{{ storedTokens.scope || "unknown" }}</dd>
+          </div>
+          <div>
+            <dt>issued_at</dt>
+            <dd>{{ storedTokens.issued_at }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section v-if="storedUserInfo" class="flow-box">
         <h2>UserInfo</h2>
         <dl>
           <div v-for="([key, value]) in userInfoEntries" :key="key">
@@ -52,32 +75,14 @@
         </dl>
       </section>
 
-      <section class="flow-box">
-        <h2>Login flow</h2>
-        <ol>
-          <li>Portal calls /authorize with client_id, redirect_uri, state, and PKCE challenge.</li>
-          <li>AuthFoundation returns session_id in the response body; Portal stores it in localStorage.</li>
-          <li>After login and consent, AuthFoundation redirects back to this top page with code and state.</li>
-          <li>Portal validates state, exchanges code at /token, stores tokens, and calls /userinfo.</li>
-        </ol>
-      </section>
-
       <section class="flow-box flow-box-muted">
-        <h2>Current request</h2>
-        <dl>
-          <div>
-            <dt>client_id</dt>
-            <dd><code>{{ clientId }}</code></dd>
-          </div>
-          <div>
-            <dt>scope</dt>
-            <dd>{{ scope }}</dd>
-          </div>
-          <div>
-            <dt>callback</dt>
-            <dd><code>/</code></dd>
-          </div>
-        </dl>
+        <h2>Flow</h2>
+        <ol>
+          <li>Portal が PKCE、state、nonce を生成して /authorize を呼び出します。</li>
+          <li>Auth API は認可セッションを HttpOnly Cookie として保持し、次の画面 URL を返します。</li>
+          <li>ログインと規約同意が完了すると、Auth API はこのページへ code と state を返します。</li>
+          <li>Portal は state を検証し、/token と /userinfo を呼び出します。</li>
+        </ol>
       </section>
     </div>
   </AuthShell>
@@ -97,6 +102,8 @@ const storedTokens = ref<StoredTokens | null>(null);
 const storedUserInfo = ref<StoredUserInfo | null>(null);
 const authStatus = ref<"idle" | "processing" | "success" | "error">("idle");
 const authError = ref("");
+const notice = ref("");
+const redirectUri = ref("/");
 
 const userInfoEntries = computed(() => Object.entries(storedUserInfo.value || {})
   .filter(([key]) => key !== "saved_at"));
@@ -110,6 +117,7 @@ function firstQueryValue(value: unknown) {
 }
 
 onMounted(() => {
+  redirectUri.value = `${window.location.origin}/`;
   storedTokens.value = flow.readTokens();
   storedUserInfo.value = flow.readUserInfo();
 
@@ -131,6 +139,7 @@ async function completeAuthorization(code: string, state: string) {
   pending.value = true;
   authStatus.value = "processing";
   authError.value = "";
+  notice.value = "";
 
   try {
     const result = await flow.completeAuthorization({ code, state });
@@ -140,7 +149,7 @@ async function completeAuthorization(code: string, state: string) {
     window.history.replaceState({}, document.title, window.location.pathname);
   } catch (error) {
     authStatus.value = "error";
-    authError.value = error instanceof Error ? error.message : "Authorization callback processing failed.";
+    authError.value = error instanceof Error ? error.message : "認可レスポンスの処理に失敗しました。";
   } finally {
     pending.value = false;
   }
@@ -148,19 +157,35 @@ async function completeAuthorization(code: string, state: string) {
 
 async function startLogin() {
   pending.value = true;
+  authError.value = "";
+  notice.value = "";
+
   try {
     await flow.startAuthorization();
+  } catch (error) {
+    authStatus.value = "error";
+    authError.value = error instanceof Error ? error.message : "認可リクエストの開始に失敗しました。";
   } finally {
     pending.value = false;
   }
 }
 
-function clearLocalTokens() {
-  flow.clearTokens();
-  flow.clearUserInfo();
-  storedTokens.value = null;
-  storedUserInfo.value = null;
-  authStatus.value = "idle";
+async function signOut() {
+  pending.value = true;
   authError.value = "";
+  notice.value = "";
+
+  try {
+    await flow.signOut(false);
+    authStatus.value = "idle";
+    notice.value = "ログアウトしました。";
+  } catch (error) {
+    authStatus.value = "error";
+    authError.value = error instanceof Error ? error.message : "ログアウトAPIの呼び出しに失敗しました。ローカルのトークンは削除しました。";
+  } finally {
+    storedTokens.value = null;
+    storedUserInfo.value = null;
+    pending.value = false;
+  }
 }
 </script>

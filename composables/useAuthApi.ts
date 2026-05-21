@@ -2,15 +2,17 @@ import type {
   AuthorizeStartResponse,
   AuthApiResult,
   LoginResponse,
-  SignupResponse,
+  LogoutResponse,
+  SignupAccountResponse,
+  SignupEmailResponse,
+  SignupVerifyResponse,
   TermsResponse,
   TermsSubmitResponse,
   TokenResponse,
   UserInfoResponse
 } from "~/types/auth";
-import { sha256HexUpper } from "~/utils/sha256";
 
-type FormValue = string | number | boolean;
+type FormValue = string | number | boolean | undefined | null;
 
 function parseResponse<T>(text: string): T {
   if (!text) {
@@ -41,11 +43,24 @@ export function useAuthApi() {
       return null;
     }
 
-    if (/^https?:\/\//i.test(location)) {
+    try {
+      const base = import.meta.client ? window.location.origin : "http://localhost";
+      const redirectUrl = new URL(location, base);
+      redirectUrl.searchParams.delete("session_id");
+      return redirectUrl.toString();
+    } catch {
       return location;
     }
+  };
 
-    return resolveApiPath(location);
+  const readResponse = async <T>(response: Response): Promise<AuthApiResult<T>> => {
+    const text = await response.text();
+    return {
+      ok: response.ok,
+      status: response.status,
+      data: parseResponse<T>(text),
+      location: normalizeRedirect(response.headers.get("Location"))
+    };
   };
 
   const postForm = async <T>(
@@ -56,11 +71,17 @@ export function useAuthApi() {
     const body = new URLSearchParams();
     Object.entries(values).forEach(([key, value]) => {
       if (Array.isArray(value)) {
-        value.forEach((item) => body.append(key, String(item)));
+        value.forEach((item) => {
+          if (item !== undefined && item !== null) {
+            body.append(key, String(item));
+          }
+        });
         return;
       }
 
-      body.set(key, String(value));
+      if (value !== undefined && value !== null) {
+        body.set(key, String(value));
+      }
     });
 
     const response = await fetch(resolveApiPath(path), {
@@ -73,43 +94,49 @@ export function useAuthApi() {
       body: body.toString()
     });
 
-    const text = await response.text();
-    return {
-      ok: response.ok,
-      status: response.status,
-      data: parseResponse<T>(text),
-      location: normalizeRedirect(response.headers.get("Location"))
-    };
+    return await readResponse<T>(response);
   };
 
-  const login = async (input: { sessionId: string; email: string; password: string }) => {
+  const login = async (input: { email: string; password: string }) => {
     return await postForm<LoginResponse>("/login", {
-      session_id: input.sessionId,
       email: input.email,
       password: input.password
     });
   };
 
-  const signup = async (input: { sessionId: string; email: string; password: string }) => {
-    return await postForm<SignupResponse>("/Signup/Account", {
-      session_id: input.sessionId,
-      email: input.email,
+  const signupEmail = async (input: { email: string }) => {
+    return await postForm<SignupEmailResponse>("/signup/email", {
+      email: input.email
+    });
+  };
+
+  const signupVerify = async (input: { code: string }) => {
+    return await postForm<SignupVerifyResponse>("/signup/verify", {
+      code: input.code
+    });
+  };
+
+  const signupAccount = async (input: { password: string }) => {
+    return await postForm<SignupAccountResponse>("/signup/account", {
       password: input.password
     });
   };
 
-  const fetchTerms = async (sessionId: string) => {
-    return await postForm<TermsResponse>("/terms/list", {
-      session_id: sessionId
-    });
+  const fetchTerms = async () => {
+    return await postForm<TermsResponse>("/terms/list", {});
   };
 
-  const submitTerms = async (input: { sessionId: string; accepted: boolean; termIds: string[] }) => {
+  const submitTerms = async (input: { accepted: boolean; termIds: string[] }) => {
     return await postForm<TermsSubmitResponse>("/terms", {
-      session_id: input.sessionId,
       accepted: input.accepted,
       term_ids: input.termIds
     });
+  };
+
+  const logout = async (input: { logoutAll?: boolean; accessToken?: string } = {}) => {
+    return await postForm<LogoutResponse>("/logout", {
+      logout_all: input.logoutAll ?? false
+    }, input.accessToken ? { Authorization: `Bearer ${input.accessToken}` } : {});
   };
 
   const exchangeCode = async (input: {
@@ -134,17 +161,11 @@ export function useAuthApi() {
       method: "GET",
       credentials: "include",
       headers: {
-        "Authorization": `Bearer ${accessToken}`
+        Authorization: `Bearer ${accessToken}`
       }
     });
 
-    const text = await response.text();
-    return {
-      ok: response.ok,
-      status: response.status,
-      data: parseResponse<UserInfoResponse>(text),
-      location: normalizeRedirect(response.headers.get("Location"))
-    };
+    return await readResponse<UserInfoResponse>(response);
   };
 
   const startAuthorize = async (authorizeUrl: URL): Promise<AuthApiResult<AuthorizeStartResponse>> => {
@@ -152,18 +173,12 @@ export function useAuthApi() {
       method: "GET",
       credentials: "include",
       headers: {
-        "Accept": "application/json",
+        Accept: "application/json",
         "x-auth-ui-session-mode": "body"
       }
     });
 
-    const text = await response.text();
-    return {
-      ok: response.ok,
-      status: response.status,
-      data: parseResponse<AuthorizeStartResponse>(text),
-      location: normalizeRedirect(response.headers.get("Location"))
-    };
+    return await readResponse<AuthorizeStartResponse>(response);
   };
 
   return {
@@ -172,9 +187,12 @@ export function useAuthApi() {
     normalizeRedirect,
     startAuthorize,
     login,
-    signup,
+    signupEmail,
+    signupVerify,
+    signupAccount,
     fetchTerms,
     submitTerms,
+    logout,
     exchangeCode,
     fetchUserInfo
   };

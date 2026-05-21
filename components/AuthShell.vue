@@ -21,6 +21,6 @@ withDefaults(defineProps<{
   title: string;
   description: string;
 }>(), {
-  eyebrow: "Osolab Auth"
+  eyebrow: "AuthFoundation OIDC"
 });
 </script>

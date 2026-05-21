@@ -6,6 +6,7 @@
       :type="type"
       :value="modelValue"
       :autocomplete="autocomplete"
+      :inputmode="inputmode"
       :placeholder="placeholder"
       :required="required"
       @input="onInput"
@@ -21,12 +22,14 @@ withDefaults(defineProps<{
   modelValue: string;
   type?: string;
   autocomplete?: string;
+  inputmode?: "search" | "text" | "email" | "tel" | "url" | "none" | "numeric" | "decimal";
   placeholder?: string;
   hint?: string;
   required?: boolean;
 }>(), {
   type: "text",
   autocomplete: "off",
+  inputmode: undefined,
   placeholder: "",
   hint: "",
   required: false

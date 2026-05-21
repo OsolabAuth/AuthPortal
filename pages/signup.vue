@@ -1,23 +1,9 @@
 <template>
   <AuthShell
     title="アカウント作成"
-    description="認可セッションに紐づく Osolab アカウントを作成します。"
+    description="メール認証コードを検証してから、パスワードを登録します。"
   >
-    <template #context>
-      <p class="session-pill">
-        session_id:
-        <code>{{ sessionId || "未指定" }}</code>
-      </p>
-    </template>
-
-    <div v-if="verifyUrl" class="stack">
-      <p class="message message-info">
-        仮登録が完了しました。現在の API は確認 URL をレスポンスで返すため、下のリンクから検証できます。
-      </p>
-      <a class="button" :href="verifyUrl">メール確認を実行する</a>
-    </div>
-
-    <form v-else class="stack" @submit.prevent="submit">
+    <form v-if="stage === 'email'" class="stack" @submit.prevent="submitEmail">
       <FormField
         id="email"
         v-model="email"
@@ -28,72 +14,184 @@
         required
       />
 
+      <p class="message message-info">
+        入力したメールアドレスに5桁の認証コードを送信します。
+      </p>
+
+      <p v-if="errorMessage" class="message message-error">{{ errorMessage }}</p>
+
+      <button class="button" type="submit" :disabled="pending">
+        {{ pending ? "送信中..." : "認証コードを送信" }}
+      </button>
+
+      <NuxtLink class="text-link" to="/login">
+        ログインに戻る
+      </NuxtLink>
+    </form>
+
+    <form v-else-if="stage === 'verify'" class="stack" @submit.prevent="submitVerify">
+      <p class="message message-info">
+        メールに記載された5桁の認証コードを入力してください。
+      </p>
+
+      <FormField
+        id="verification-code"
+        v-model="verificationCode"
+        label="認証コード"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        placeholder="12345"
+        required
+      />
+
+      <p v-if="errorMessage" class="message message-error">{{ errorMessage }}</p>
+
+      <button class="button" type="submit" :disabled="pending">
+        {{ pending ? "検証中..." : "コードを検証" }}
+      </button>
+
+      <button class="button button-secondary" type="button" :disabled="pending" @click="resetToEmail">
+        メールアドレス入力へ戻る
+      </button>
+    </form>
+
+    <form v-else class="stack" @submit.prevent="submitAccount">
+      <p class="message message-info">
+        パスワード登録後、認可フローを再開します。
+      </p>
+
       <FormField
         id="password"
         v-model="password"
         label="パスワード"
         type="password"
         autocomplete="new-password"
-        placeholder="64文字 SHA-256 へ変換して送信"
+        placeholder="Password123"
+        hint="8文字以上、英大文字・英小文字・数字を含めてください。"
         required
       />
 
-      <p v-if="!sessionId" class="message message-warning">
-        session_id がありません。通常はログイン画面から遷移します。
-      </p>
+      <FormField
+        id="password-confirm"
+        v-model="passwordConfirm"
+        label="パスワード（再入力）"
+        type="password"
+        autocomplete="new-password"
+        placeholder="Password123"
+        required
+      />
 
       <p v-if="errorMessage" class="message message-error">{{ errorMessage }}</p>
 
       <button class="button" type="submit" :disabled="pending">
-        {{ pending ? "作成中..." : "アカウントを作成する" }}
+        {{ pending ? "登録中..." : "アカウントを登録" }}
       </button>
 
-      <NuxtLink class="text-link" :to="appendSessionQuery('/login')">
-        ログインに戻る
-      </NuxtLink>
+      <button class="button button-secondary" type="button" :disabled="pending" @click="stage = 'verify'">
+        認証コード入力へ戻る
+      </button>
     </form>
-
-    <ResponseDebug :payload="lastResponse" />
   </AuthShell>
 </template>
 
 <script setup lang="ts">
 useHead({ title: "Signup" });
 
-const api = useAuthApi();
-const { sessionId, appendSessionQuery } = useAuthorizationSession();
+type SignupStage = "email" | "verify" | "password";
 
+const api = useAuthApi();
+
+const stage = ref<SignupStage>("email");
 const email = ref("");
+const verificationCode = ref("");
 const password = ref("");
+const passwordConfirm = ref("");
 const pending = ref(false);
 const errorMessage = ref("");
-const verifyUrl = ref("");
-const lastResponse = ref<unknown>(null);
 
-async function submit() {
+async function submitEmail() {
   pending.value = true;
   errorMessage.value = "";
 
   try {
-    const result = await api.signup({
-      sessionId: sessionId.value,
-      email: email.value.trim(),
-      password: password.value
+    const result = await api.signupEmail({
+      email: email.value.trim()
     });
 
-    lastResponse.value = result.data;
-
-    const rawVerifyUrl = result.data.VerifyUrl || result.data.verifyUrl || "";
-    if (result.ok && rawVerifyUrl) {
-      verifyUrl.value = api.resolveApiPath(rawVerifyUrl);
+    const statusCode = result.data.StatusCode || result.data.statusCode;
+    if (result.ok && (!statusCode || statusCode === "00000")) {
+      stage.value = "verify";
       return;
     }
 
-    errorMessage.value = result.data.Message || result.data.message || `アカウント作成に失敗しました。status=${result.status}`;
+    errorMessage.value = result.data.Message || result.data.message || `認証コード送信に失敗しました。status=${result.status}`;
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "アカウント作成処理でエラーが発生しました。";
+    errorMessage.value = error instanceof Error ? error.message : "認証コード送信でエラーが発生しました。";
   } finally {
     pending.value = false;
   }
+}
+
+async function submitVerify() {
+  pending.value = true;
+  errorMessage.value = "";
+
+  try {
+    const result = await api.signupVerify({
+      code: verificationCode.value.trim()
+    });
+
+    const statusCode = result.data.StatusCode || result.data.statusCode;
+    if (result.ok && (!statusCode || statusCode === "00000")) {
+      stage.value = "password";
+      return;
+    }
+
+    errorMessage.value = result.data.Message || result.data.message || `コード検証に失敗しました。status=${result.status}`;
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : "コード検証でエラーが発生しました。";
+  } finally {
+    pending.value = false;
+  }
+}
+
+async function submitAccount() {
+  if (password.value !== passwordConfirm.value) {
+    errorMessage.value = "パスワードが一致しません。";
+    return;
+  }
+
+  pending.value = true;
+  errorMessage.value = "";
+
+  try {
+    const result = await api.signupAccount({
+      password: password.value
+    });
+
+    if (result.ok && result.data.result === "redirect" && result.location) {
+      window.location.assign(result.location);
+      return;
+    }
+
+    if (result.ok && result.data.result === "redirect") {
+      errorMessage.value = "登録は完了しましたが、リダイレクト先がレスポンスに含まれていません。";
+      return;
+    }
+
+    errorMessage.value = result.data.message || `アカウント登録に失敗しました。status=${result.status}`;
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : "アカウント登録でエラーが発生しました。";
+  } finally {
+    pending.value = false;
+  }
+}
+
+function resetToEmail() {
+  stage.value = "email";
+  verificationCode.value = "";
+  password.value = "";
+  passwordConfirm.value = "";
+  errorMessage.value = "";
 }
 </script>

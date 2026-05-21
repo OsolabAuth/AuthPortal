@@ -1,40 +1,34 @@
 # AuthFoundation Portal
 
-Nuxt scaffold for standalone authentication screens.
+Nuxt UI for AuthFoundation authentication and OIDC front-channel screens.
 
-The current AuthFoundation API still owns the OIDC flow and accepts form posts. This UI keeps the screens separate while matching the existing API contract.
+The portal behaves as a lightweight OIDC client for development and operations: it starts Authorization Code + PKCE, renders login/signup/consent screens, exchanges the authorization code, calls UserInfo, and provides a simple logout action.
 
 ## Screens
 
-- `/`
-- `/login`
-- `/signup`
-- `/terms`
-- `/?code=...&state=...`
-- `/callback?code=...&state=...` legacy/dev page
+- `/` starts authorization and receives `/?code=...&state=...` callbacks.
+- `/login` posts user credentials to Auth API `/login`.
+- `/signup` posts account creation data and completes mail verification with a code.
+- `/terms` loads and submits required terms and requested scopes.
+- `/callback?code=...&state=...` is kept as a legacy/dev callback page.
 
-`/` starts the OIDC authorization code flow with PKCE. It uses `client_id=00000000000000000000000000000000` by default, stores `state`, `nonce`, and `code_verifier` in `sessionStorage`, calls the AuthFoundation API `/authorize` endpoint, stores the returned authorization `session_id` in `localStorage`, and then moves to the returned screen URL.
+## Screen Flow
 
-`/` also receives the authorization redirect. When `code` and `state` are present, it validates `state`, exchanges the authorization code at `/token`, stores tokens in `localStorage`, calls `/userinfo`, stores UserInfo in `localStorage`, and removes the callback query from the browser URL. This is a scaffolding behavior for development; production authorization state should be tightened before storing long-lived tokens in the browser.
-
-## Screen Flow (Portal)
-
-Expected screen-side flow with the current API implementation:
-
-1. User opens `/` and clicks login.
-2. Portal calls `GET /authorize` with `x-auth-ui-session-mode: body`.
-3. Portal stores `session_id` in `localStorage` and moves to `redirect_url` (normally `/login`).
-4. User submits `/login`; Portal posts `session_id`, `email`, `password` to `POST /login`.
-5. If account creation is needed, user moves to `/signup`, posts to `POST /Signup/Account`, and runs verify URL when returned.
-6. After successful login, API redirects to `/terms` when consent is required.
-7. `/terms` loads `POST /terms/list`, shows terms (`term_id`, `version`, `term_url`, `required`) and requested scopes.
-8. User submits `POST /terms` with `accepted` and repeated `term_ids`.
-9. API redirects back to `/` with `code` and `state`; Portal exchanges code at `POST /token`, then calls `GET /userinfo`.
-10. Portal stores token and UserInfo in `localStorage`, clears authorization `session_id`, and removes callback query parameters from the URL.
+1. User opens `/` and clicks OIDC login.
+2. Portal stores only transient `state`, `nonce`, and `code_verifier` in `sessionStorage`.
+3. Portal calls `GET /authorize` with `x-auth-ui-session-mode: body`.
+4. Auth API creates the authorization session, sets the session as an HttpOnly Cookie, and returns `redirect_url`.
+5. Portal navigates to `redirect_url`, normally `/login`.
+6. `/login`, `/signup`, and `/terms` post form data without `session_id`; Auth API reads the authorization session from Cookie.
+7. After login and consent, Auth API redirects back to `/` with `code` and `state`.
+8. Portal validates `state`, exchanges `code` at `POST /token`, calls `GET /userinfo`, and stores the development token/UserInfo snapshot in `localStorage`.
+9. Portal removes callback query parameters from the URL.
+10. Logout calls `POST /logout` and clears the local token/UserInfo snapshot.
 
 Notes:
-- `session_id` is not appended to portal URLs.
-- Portal screen actions always send `session_id` in `application/x-www-form-urlencoded` body.
+
+- `session_id` must not be placed in portal URLs, localStorage, or normal form bodies.
+- Browser token storage is acceptable for this scaffold only. Production handling should move tokens to a hardened BFF/session design or otherwise reduce XSS exposure.
 
 ## Local Run
 
@@ -55,7 +49,7 @@ $env:NUXT_PUBLIC_AUTH_SCOPE="openid profile email"
 npm run dev
 ```
 
-For a separate origin, AuthFoundation will also need CORS, `Access-Control-Expose-Headers: Location`, and cookie settings because login uses the auth session cookie.
+For a separate origin, AuthFoundation must allow CORS, expose the `Location` header, and set cookies in a way the browser will send back to the API origin.
 
 ## Existing API Contract
 
@@ -70,32 +64,47 @@ For a separate origin, AuthFoundation will also need CORS, `Access-Control-Expos
 - Query: `code_challenge_method=S256`
 - Query: `code_challenge`
 - Query: `nonce`
+- Header: `x-auth-ui-session-mode: body`
 
-The portal top page builds this URL and calls it with `x-auth-ui-session-mode: body`. In this mode the API returns JSON containing `session_id` and `redirect_url` instead of exposing `session_id` in the redirect URL.
+The API returns JSON with `redirect_url` and sets the authorization session as an HttpOnly Cookie. A `session_id` body field may exist for compatibility, but the portal does not persist or send it.
 
 ### Login
 
 - `POST /login`
 - `Content-Type: application/x-www-form-urlencoded`
-- Body: `session_id`, `email`, `password`
-- Password is sent as upper-case SHA-256 hex to match the current templates.
+- Body: `email`, `password`
+- Cookie: authorization session Cookie from `/authorize`
+- Redirect result: JSON `result=redirect` plus `Location` header
 
 ### Signup
 
 - `POST /Signup/Account`
 - `Content-Type: application/x-www-form-urlencoded`
-- Body: `session_id`, `email`, `password`
+- Body: `email`, `password`
+- Cookie: authorization session Cookie from `/authorize`
+- Response: `VerifyUrl`
+
+Mail verification uses `GET /Signup/Verify?token=...&code=...`. The portal asks the user for the mail code and appends it to `VerifyUrl`.
 
 ### Terms
 
 - `POST /terms/list`
 - `Content-Type: application/x-www-form-urlencoded`
-- Body: `session_id`
+- Cookie: authorization session Cookie from `/authorize`
 - Response terms item: `term_id`, `title`, `version`, `term_url`, `required`
 
 - `POST /terms`
 - `Content-Type: application/x-www-form-urlencoded`
-- Body: `session_id`, `accepted`, repeated `term_ids`
+- Cookie: authorization session Cookie from `/authorize`
+- Body: `accepted`, repeated `term_ids`
+- Redirect result: JSON `result=redirect` plus `Location` header
+
+### Logout
+
+- `POST /logout`
+- `Content-Type: application/x-www-form-urlencoded`
+- Body: `logout_all`
+- Optional header: `Authorization: Bearer <access_token>`
 
 ### Token
 
@@ -109,11 +118,9 @@ The portal top page builds this URL and calls it with `x-auth-ui-session-mode: b
 - `GET /userinfo`
 - Header: `Authorization: Bearer <access_token>`
 
-The portal top page calls this after a successful token exchange and stores the returned claims in `localStorage`.
-
 ## Cloud Run Build
 
-This app includes a basic Dockerfile and `.github/workflows/deploy-cloud-run.yml`.
+This app includes a Dockerfile and `.github/workflows/deploy-cloud-run.yml`.
 
 Before the first deploy, update the GCP Workload Identity condition for this repository. See `deploy/GCP_CLOUD_RUN_DEPLOY.md`.
 
