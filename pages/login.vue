@@ -1,7 +1,7 @@
 <template>
   <AuthShell
     title="ログイン"
-    description="AuthFoundation の認可セッション Cookie に紐づけて、ユーザーを認証します。"
+    description="メールアドレスとパスワードを入力してください。"
   >
     <form class="stack" @submit.prevent="submit">
       <FormField
@@ -23,10 +23,6 @@
         placeholder="Password123"
         required
       />
-
-      <p class="message message-info">
-        認可セッションは Auth API が発行した HttpOnly Cookie から読み取ります。
-      </p>
 
       <p v-if="errorMessage" class="message message-error">{{ errorMessage }}</p>
       <p v-if="notice" class="message message-info">{{ notice }}</p>
@@ -70,16 +66,16 @@ async function submit() {
     }
 
     if (result.ok && result.data.result === "logged_in") {
-      notice.value = result.data.message || "ログインしました。認可セッションがないため、この画面で完了しています。";
+      notice.value = result.data.message || "ログインしました。";
       return;
     }
 
     if (result.ok && result.data.result === "redirect") {
-      errorMessage.value = "ログインは成功しましたが、リダイレクト先がレスポンスに含まれていません。";
+      errorMessage.value = "ログインは完了しましたが、遷移先URLがありません。";
       return;
     }
 
-    errorMessage.value = result.data.message || `ログインに失敗しました。status=${result.status}`;
+    errorMessage.value = result.data.message || `ログインに失敗しました。 status=${result.status}`;
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "ログイン処理でエラーが発生しました。";
   } finally {

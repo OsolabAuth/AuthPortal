@@ -1,16 +1,13 @@
 <template>
   <main class="auth-shell">
     <section class="auth-panel">
-      <div class="auth-copy">
+      <header class="auth-header">
         <p class="eyebrow">{{ eyebrow }}</p>
         <h1>{{ title }}</h1>
-        <p class="lead">{{ description }}</p>
-        <slot name="context" />
-      </div>
+        <p v-if="description" class="lead">{{ description }}</p>
+      </header>
 
-      <div class="auth-card">
-        <slot />
-      </div>
+      <slot />
     </section>
   </main>
 </template>
@@ -19,8 +16,9 @@
 withDefaults(defineProps<{
   eyebrow?: string;
   title: string;
-  description: string;
+  description?: string;
 }>(), {
-  eyebrow: "AuthFoundation OIDC"
+  eyebrow: "AuthFoundation",
+  description: ""
 });
 </script>

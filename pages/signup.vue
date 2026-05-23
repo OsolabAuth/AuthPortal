@@ -1,7 +1,7 @@
 <template>
   <AuthShell
-    title="アカウント作成"
-    description="メール認証コードを検証してから、パスワードを登録します。"
+    title="アカウント登録"
+    description="メール認証後にパスワードを登録します。"
   >
     <form v-if="stage === 'email'" class="stack" @submit.prevent="submitEmail">
       <FormField
@@ -14,10 +14,6 @@
         required
       />
 
-      <p class="message message-info">
-        入力したメールアドレスに5桁の認証コードを送信します。
-      </p>
-
       <p v-if="errorMessage" class="message message-error">{{ errorMessage }}</p>
 
       <button class="button" type="submit" :disabled="pending">
@@ -25,15 +21,11 @@
       </button>
 
       <NuxtLink class="text-link" to="/login">
-        ログインに戻る
+        ログインへ戻る
       </NuxtLink>
     </form>
 
     <form v-else-if="stage === 'verify'" class="stack" @submit.prevent="submitVerify">
-      <p class="message message-info">
-        メールに記載された5桁の認証コードを入力してください。
-      </p>
-
       <FormField
         id="verification-code"
         v-model="verificationCode"
@@ -47,19 +39,15 @@
       <p v-if="errorMessage" class="message message-error">{{ errorMessage }}</p>
 
       <button class="button" type="submit" :disabled="pending">
-        {{ pending ? "検証中..." : "コードを検証" }}
+        {{ pending ? "確認中..." : "コードを確認" }}
       </button>
 
       <button class="button button-secondary" type="button" :disabled="pending" @click="resetToEmail">
-        メールアドレス入力へ戻る
+        メールアドレスを変更
       </button>
     </form>
 
     <form v-else class="stack" @submit.prevent="submitAccount">
-      <p class="message message-info">
-        パスワード登録後、認可フローを再開します。
-      </p>
-
       <FormField
         id="password"
         v-model="password"
@@ -67,14 +55,14 @@
         type="password"
         autocomplete="new-password"
         placeholder="Password123"
-        hint="8文字以上、英大文字・英小文字・数字を含めてください。"
+        hint="8文字以上で英大文字・英小文字・数字を含めてください。"
         required
       />
 
       <FormField
         id="password-confirm"
         v-model="passwordConfirm"
-        label="パスワード（再入力）"
+        label="パスワード（確認）"
         type="password"
         autocomplete="new-password"
         placeholder="Password123"
@@ -124,7 +112,7 @@ async function submitEmail() {
       return;
     }
 
-    errorMessage.value = result.data.Message || result.data.message || `認証コード送信に失敗しました。status=${result.status}`;
+    errorMessage.value = result.data.Message || result.data.message || `認証コード送信に失敗しました。 status=${result.status}`;
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "認証コード送信でエラーが発生しました。";
   } finally {
@@ -147,9 +135,9 @@ async function submitVerify() {
       return;
     }
 
-    errorMessage.value = result.data.Message || result.data.message || `コード検証に失敗しました。status=${result.status}`;
+    errorMessage.value = result.data.Message || result.data.message || `コード確認に失敗しました。 status=${result.status}`;
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "コード検証でエラーが発生しました。";
+    errorMessage.value = error instanceof Error ? error.message : "コード確認でエラーが発生しました。";
   } finally {
     pending.value = false;
   }
@@ -175,11 +163,11 @@ async function submitAccount() {
     }
 
     if (result.ok && result.data.result === "redirect") {
-      errorMessage.value = "登録は完了しましたが、リダイレクト先がレスポンスに含まれていません。";
+      errorMessage.value = "登録は完了しましたが、遷移先URLがありません。";
       return;
     }
 
-    errorMessage.value = result.data.message || `アカウント登録に失敗しました。status=${result.status}`;
+    errorMessage.value = result.data.message || `アカウント登録に失敗しました。 status=${result.status}`;
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "アカウント登録でエラーが発生しました。";
   } finally {
