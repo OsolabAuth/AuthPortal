@@ -26,9 +26,14 @@ const revokeError = ref('')
 const tokenScopes = ref(['task_read'])
 const tokenResult = ref('')
 const tokenError = ref('')
+const tokenResponse = ref<Record<string, unknown> | null>(null)
 
 const selectedCreateScope = computed(() => createScopes.value.join(' '))
 const selectedTokenScope = computed(() => tokenScopes.value.join(' '))
+const tokenInspections = computed(() => [
+  inspectJwt('ID Token', tokenResponse.value?.id_token),
+  inspectJwt('Access Token', tokenResponse.value?.access_token)
+])
 
 async function createAgent() {
   createError.value = ''
@@ -100,6 +105,7 @@ async function revokeAgent() {
 async function requestToken() {
   tokenError.value = ''
   tokenResult.value = ''
+  tokenResponse.value = null
   const response = await fetch(`${config.public.authApiBase}/agent/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -116,11 +122,95 @@ async function requestToken() {
     return
   }
 
+  tokenResponse.value = body
   tokenResult.value = JSON.stringify(body, null, 2)
 }
 
 function readError(body: Record<string, unknown>, fallback: string): string {
   return String(body.error_description || body.message || fallback)
+}
+
+type TokenInspection = {
+  label: string
+  available: boolean
+  error: string
+  claims: Record<string, unknown>
+  importantClaims: Array<{ name: string, value: string }>
+  rawPayload: string
+}
+
+function inspectJwt(label: string, token: unknown): TokenInspection {
+  if (typeof token !== 'string' || token.length === 0) {
+    return emptyInspection(label)
+  }
+
+  const parts = token.split('.')
+  if (parts.length < 2) {
+    return {
+      ...emptyInspection(label),
+      available: true,
+      error: 'Token is not a JWT.'
+    }
+  }
+
+  try {
+    const payload = decodeBase64UrlJson(parts[1])
+    const claims = JSON.parse(payload) as Record<string, unknown>
+    return {
+      label,
+      available: true,
+      error: '',
+      claims,
+      importantClaims: [
+        'principal_type',
+        'sub',
+        'agent_id',
+        'agent_name',
+        'owner_sub',
+        'delegation_id',
+        'scope',
+        'exp'
+      ].map((name) => ({ name, value: formatClaim(claims[name]) })),
+      rawPayload: JSON.stringify(claims, null, 2)
+    }
+  } catch (error) {
+    return {
+      ...emptyInspection(label),
+      available: true,
+      error: error instanceof Error ? error.message : 'Token payload decode failed.'
+    }
+  }
+}
+
+function emptyInspection(label: string): TokenInspection {
+  return {
+    label,
+    available: false,
+    error: '',
+    claims: {},
+    importantClaims: [],
+    rawPayload: ''
+  }
+}
+
+function decodeBase64UrlJson(value: string): string {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=')
+  const binary = atob(padded)
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+  return new TextDecoder().decode(bytes)
+}
+
+function formatClaim(value: unknown): string {
+  if (value === undefined || value === null || value === '') {
+    return '-'
+  }
+
+  if (Array.isArray(value)) {
+    return value.join(' ')
+  }
+
+  return String(value)
 }
 </script>
 
@@ -208,6 +298,37 @@ function readError(body: Record<string, unknown>, fallback: string): string {
 
           <p v-if="tokenError" class="error">{{ tokenError }}</p>
           <pre v-if="tokenResult">{{ tokenResult }}</pre>
+
+          <section v-if="tokenResponse" class="token-inspector">
+            <h2>Token inspector</h2>
+            <p class="notice">
+              Payloads are decoded locally for inspection only. Signatures are not verified here.
+            </p>
+            <div v-for="inspection in tokenInspections" :key="inspection.label" class="stack">
+              <h3>{{ inspection.label }}</h3>
+              <p v-if="!inspection.available" class="notice">Token is not present in the response.</p>
+              <p v-else-if="inspection.error" class="error">{{ inspection.error }}</p>
+              <template v-else>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Claim</th>
+                        <th>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="claim in inspection.importantClaims" :key="claim.name">
+                        <td>{{ claim.name }}</td>
+                        <td>{{ claim.value }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <pre>{{ inspection.rawPayload }}</pre>
+              </template>
+            </div>
+          </section>
         </section>
       </div>
 

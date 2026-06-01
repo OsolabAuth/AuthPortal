@@ -59,6 +59,18 @@ describe('Portal production hardening', () => {
   })
 
   /**
+   * Purpose: keep authenticator setup aligned with the hardened AuthFoundation API.
+   * Input: MFA page source.
+   * Expected: authenticator setup sends a step-up token and prevents setup without one.
+   */
+  it('sends step-up token for authenticator setup', () => {
+    const page = readPage('pages/mfa.vue')
+
+    assert.match(page, /step_up_token: stepUpToken\.value/)
+    assert.match(page, /:disabled="!email \|\| !stepUpToken"/)
+  })
+
+  /**
    * Purpose: prevent empty step-up protected account operation submissions.
    * Input: password change and withdrawal page sources.
    * Expected: password and step-up token inputs are required.
@@ -77,13 +89,32 @@ describe('Portal production hardening', () => {
   /**
    * Purpose: prevent incomplete password reset submissions before API validation.
    * Input: password reset page source.
-   * Expected: login email, birth date, and new password inputs are required.
+   * Expected: login email, birth date, email code, and new password inputs are required.
    */
   it('requires password reset identity fields', () => {
     const page = readPage('pages/password/reset.vue')
 
     assert.match(page, /v-model="email" type="email" autocomplete="email" required/)
     assert.match(page, /v-model="birthDate" type="date" required/)
+    assert.match(page, /v-model="emailCode" inputmode="numeric" autocomplete="one-time-code" required/)
+    assert.match(page, /email_code: emailCode\.value/)
     assert.match(page, /v-model="newPassword" type="password" autocomplete="new-password" required/)
+  })
+
+  /**
+   * Purpose: make delegated AI Agent tokens explainable in the client.
+   * Input: Agent page source.
+   * Expected: token inspector decodes JWT payloads and surfaces delegated-auth claims without claiming signature verification.
+   */
+  it('adds an AI Agent token inspector', () => {
+    const page = readPage('pages/agent.vue')
+
+    assert.match(page, /Token inspector/)
+    assert.match(page, /function inspectJwt/)
+    assert.match(page, /decodeBase64UrlJson/)
+    assert.match(page, /principal_type/)
+    assert.match(page, /owner_sub/)
+    assert.match(page, /delegation_id/)
+    assert.match(page, /Signatures are not verified here/)
   })
 })

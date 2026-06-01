@@ -13,7 +13,10 @@ async function startEmail() {
   const response = await fetch(`${config.public.authApiBase}/mfa/email/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email.value })
+    body: JSON.stringify({
+      email: email.value,
+      step_up_token: stepUpToken.value
+    })
   })
   const body = await response.json()
   if (!response.ok) {
@@ -83,7 +86,10 @@ async function verify(path: string, code: string) {
       </div>
 
       <div class="stack">
-        <button type="button" @click="setupAuthenticator">Setup authenticator</button>
+        <button type="button" :disabled="!email || !stepUpToken" @click="setupAuthenticator">
+          Setup authenticator
+        </button>
+        <p class="notice">Authenticator setup requires a recent step-up token.</p>
         <p v-if="authenticatorSecret">Secret: {{ authenticatorSecret }}</p>
         <pre v-if="authenticatorUri">{{ authenticatorUri }}</pre>
         <label>
