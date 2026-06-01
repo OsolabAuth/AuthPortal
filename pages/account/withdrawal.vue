@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const config = useRuntimeConfig()
-const email = ref('demo@example.com')
+const email = ref('')
 const password = ref('')
 const stepUpToken = ref('')
 const result = ref('')
@@ -35,15 +35,15 @@ async function withdraw() {
       <form class="form" @submit.prevent="withdraw">
         <label>
           Email
-          <input v-model="email" type="email" autocomplete="email">
+          <input v-model="email" type="email" autocomplete="email" required>
         </label>
         <label>
           Password
-          <input v-model="password" type="password" autocomplete="current-password">
+          <input v-model="password" type="password" autocomplete="current-password" required>
         </label>
         <label>
           Step-up token
-          <input v-model="stepUpToken">
+          <input v-model="stepUpToken" required>
         </label>
         <button type="submit">Withdraw account</button>
       </form>

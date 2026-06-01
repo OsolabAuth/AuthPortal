@@ -1,8 +1,7 @@
 <script setup lang="ts">
 const config = useRuntimeConfig()
-const email = ref('demo@example.com')
+const email = ref('')
 const emailCode = ref('')
-const developmentCode = ref('')
 const authenticatorCode = ref('')
 const authenticatorSecret = ref('')
 const authenticatorUri = ref('')
@@ -21,8 +20,6 @@ async function startEmail() {
     error.value = body.error_description || 'email challenge failed'
     return
   }
-  developmentCode.value = body.code
-  emailCode.value = body.code
 }
 
 async function verifyEmail() {
@@ -73,15 +70,14 @@ async function verify(path: string, code: string) {
       <h1>MFA</h1>
       <label>
         Email
-        <input v-model="email" type="email">
+        <input v-model="email" type="email" autocomplete="email" required>
       </label>
 
       <div class="stack">
         <button type="button" @click="startEmail">Send email code</button>
-        <p v-if="developmentCode">Development code: {{ developmentCode }}</p>
         <label>
           Email code
-          <input v-model="emailCode" inputmode="numeric">
+          <input v-model="emailCode" inputmode="numeric" autocomplete="one-time-code" required>
         </label>
         <button type="button" @click="verifyEmail">Verify email code</button>
       </div>
@@ -92,7 +88,7 @@ async function verify(path: string, code: string) {
         <pre v-if="authenticatorUri">{{ authenticatorUri }}</pre>
         <label>
           Authenticator code
-          <input v-model="authenticatorCode" inputmode="numeric">
+          <input v-model="authenticatorCode" inputmode="numeric" autocomplete="one-time-code" required>
         </label>
         <button type="button" @click="verifyAuthenticator">Verify authenticator</button>
       </div>
