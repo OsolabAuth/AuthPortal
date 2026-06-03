@@ -41,6 +41,7 @@ async function submitLogin() {
         </label>
         <button type="submit">Continue</button>
       </form>
+      <NuxtLink class="text-link" to="/signup">Create account</NuxtLink>
       <p v-if="error" class="error">{{ error }}</p>
     </section>
   </main>
