@@ -76,6 +76,24 @@ input {
   padding: 10px;
 }
 
+.terms-box {
+  border: 1px solid #d8deea;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+.terms-box h2 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .error {
   color: #b42318;
   font-weight: 700;
