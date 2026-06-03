@@ -44,6 +44,7 @@ async function startLogin() {
       <h1>AuthPortal rebuild</h1>
       <p>Minimal Authorization Code + PKCE flow is available for development.</p>
       <button type="button" @click="startLogin">Login with OsolabAuth</button>
+      <NuxtLink class="text-link" to="/agent">Manage AI agents</NuxtLink>
       <p v-if="error" class="error">{{ error }}</p>
     </section>
   </main>
