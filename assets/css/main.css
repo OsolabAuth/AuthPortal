@@ -94,6 +94,12 @@ input {
   gap: 10px;
 }
 
+.stack {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
 .error {
   color: #b42318;
   font-weight: 700;
