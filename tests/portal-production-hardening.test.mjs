@@ -108,13 +108,15 @@ describe('Portal production hardening', () => {
    */
   it('adds an AI Agent token inspector', () => {
     const page = readPage('pages/agent.vue')
+    const utility = readPage('utils/jwt-inspector.ts')
 
     assert.match(page, /Token inspector/)
-    assert.match(page, /function inspectJwt/)
-    assert.match(page, /decodeBase64UrlJson/)
-    assert.match(page, /principal_type/)
-    assert.match(page, /owner_sub/)
-    assert.match(page, /delegation_id/)
+    assert.match(page, /import \{ inspectJwt \} from '~\/utils\/jwt-inspector'/)
+    assert.match(utility, /export function inspectJwt/)
+    assert.match(utility, /decodeBase64UrlJson/)
+    assert.match(utility, /principal_type/)
+    assert.match(utility, /owner_sub/)
+    assert.match(utility, /delegation_id/)
     assert.match(page, /Signatures are not verified here/)
   })
 })
