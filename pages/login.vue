@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const config = useRuntimeConfig()
-const email = ref('demo@example.com')
-const password = ref('Passw0rd!')
+const email = ref('')
+const password = ref('')
 const error = ref('')
 
 async function submitLogin() {
@@ -33,11 +33,11 @@ async function submitLogin() {
       <form class="form" @submit.prevent="submitLogin">
         <label>
           Email
-          <input v-model="email" type="email" autocomplete="username">
+          <input v-model="email" type="email" autocomplete="username" required>
         </label>
         <label>
           Password
-          <input v-model="password" type="password" autocomplete="current-password">
+          <input v-model="password" type="password" autocomplete="current-password" required>
         </label>
         <button type="submit">Continue</button>
       </form>

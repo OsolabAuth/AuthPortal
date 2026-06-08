@@ -35,15 +35,15 @@ async function resetPassword() {
       <form class="form" @submit.prevent="resetPassword">
         <label>
           Login email
-          <input v-model="email" type="email" autocomplete="email">
+          <input v-model="email" type="email" autocomplete="email" required>
         </label>
         <label>
           Birth date
-          <input v-model="birthDate" type="date">
+          <input v-model="birthDate" type="date" required>
         </label>
         <label>
           New password
-          <input v-model="newPassword" type="password" autocomplete="new-password">
+          <input v-model="newPassword" type="password" autocomplete="new-password" required>
         </label>
         <button type="submit">Reset password</button>
       </form>
