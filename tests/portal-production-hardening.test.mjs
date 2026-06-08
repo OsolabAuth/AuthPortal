@@ -59,6 +59,18 @@ describe('Portal production hardening', () => {
   })
 
   /**
+   * Purpose: keep Authenticator setup aligned with the step-up protected API contract.
+   * Input: MFA page source.
+   * Expected: /mfa/email/start sends only the email and /mfa/authenticator/setup sends step_up_token.
+   */
+  it('sends step-up token only to authenticator setup', () => {
+    const page = readPage('pages/mfa.vue')
+
+    assert.match(page, /\/mfa\/email\/start[\s\S]*body: JSON\.stringify\(\{ email: email\.value \}\)/)
+    assert.match(page, /\/mfa\/authenticator\/setup[\s\S]*step_up_token: stepUpToken\.value/)
+  })
+
+  /**
    * Purpose: prevent empty step-up protected account operation submissions.
    * Input: password change and withdrawal page sources.
    * Expected: password and step-up token inputs are required.
