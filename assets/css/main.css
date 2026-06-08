@@ -40,6 +40,11 @@ h1 {
   font-size: 2rem;
 }
 
+h2,
+h3 {
+  margin: 0;
+}
+
 p {
   line-height: 1.6;
 }
@@ -136,6 +141,14 @@ legend {
   overflow-x: auto;
 }
 
+.token-inspector {
+  display: grid;
+  gap: 16px;
+  border-top: 1px solid #d8deea;
+  margin-top: 8px;
+  padding-top: 20px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -186,6 +199,15 @@ pre {
   background: #111827;
   color: #f7f8fb;
   padding: 16px;
+}
+
+.token-value {
+  display: inline-block;
+  border-radius: 6px;
+  background: #edf2f7;
+  color: #18202f;
+  padding: 8px 10px;
+  word-break: break-all;
 }
 
 @media (max-width: 840px) {

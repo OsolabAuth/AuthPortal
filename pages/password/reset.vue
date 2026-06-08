@@ -2,9 +2,27 @@
 const config = useRuntimeConfig()
 const email = ref('')
 const birthDate = ref('')
+const emailCode = ref('')
 const newPassword = ref('')
 const result = ref('')
 const error = ref('')
+
+async function sendEmailCode() {
+  error.value = ''
+  result.value = ''
+  const response = await fetch(`${config.public.authApiBase}/mfa/email/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email.value })
+  })
+  const body = await response.json()
+  if (!response.ok) {
+    error.value = body.error_description || 'email challenge failed'
+    return
+  }
+
+  result.value = 'email_code_sent'
+}
 
 async function resetPassword() {
   error.value = ''
@@ -15,6 +33,7 @@ async function resetPassword() {
     body: JSON.stringify({
       email: email.value,
       birth_date: birthDate.value,
+      email_code: emailCode.value,
       new_password: newPassword.value
     })
   })
@@ -40,6 +59,13 @@ async function resetPassword() {
         <label>
           Birth date
           <input v-model="birthDate" type="date" required>
+        </label>
+        <div class="button-row">
+          <button type="button" :disabled="!email" @click="sendEmailCode">Send email code</button>
+        </div>
+        <label>
+          Email code
+          <input v-model="emailCode" inputmode="numeric" autocomplete="one-time-code" required>
         </label>
         <label>
           New password
