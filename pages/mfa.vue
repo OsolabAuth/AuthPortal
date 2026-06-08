@@ -13,10 +13,7 @@ async function startEmail() {
   const response = await fetch(`${config.public.authApiBase}/mfa/email/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: email.value,
-      step_up_token: stepUpToken.value
-    })
+    body: JSON.stringify({ email: email.value })
   })
   const body = await response.json()
   if (!response.ok) {
@@ -34,7 +31,10 @@ async function setupAuthenticator() {
   const response = await fetch(`${config.public.authApiBase}/mfa/authenticator/setup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email.value })
+    body: JSON.stringify({
+      email: email.value,
+      step_up_token: stepUpToken.value
+    })
   })
   const body = await response.json()
   if (!response.ok) {

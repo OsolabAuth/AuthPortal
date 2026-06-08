@@ -1,11 +1,12 @@
 <script setup lang="ts">
 const config = useRuntimeConfig()
 const email = ref('')
+const emailCode = ref('')
 const password = ref('')
 const name = ref('')
 const birthDate = ref('')
 const termsAccepted = ref(false)
-const terms = ref<{ title: string, body: string, version: string } | null>(null)
+const terms = ref<{ terms_id?: string, title: string, body: string, version: string } | null>(null)
 const result = ref('')
 const error = ref('')
 
@@ -16,18 +17,59 @@ onMounted(async () => {
   }
 })
 
-async function signup() {
+async function sendSignupEmail() {
   error.value = ''
   result.value = ''
-  const response = await fetch(`${config.public.authApiBase}/signup`, {
+  const response = await fetch(`${config.public.authApiBase}/signup/email`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ email: email.value })
+  })
+  const body = await response.json()
+  if (!response.ok) {
+    error.value = body.error_description || 'email verification failed'
+    return
+  }
+
+  result.value = 'Verification code sent.'
+}
+
+async function verifySignupEmail() {
+  error.value = ''
+  result.value = ''
+  const response = await fetch(`${config.public.authApiBase}/signup/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      email: email.value,
+      code: emailCode.value
+    })
+  })
+  const body = await response.json()
+  if (!response.ok) {
+    error.value = body.error_description || 'verification failed'
+    return
+  }
+
+  result.value = 'Email verified.'
+}
+
+async function createAccount() {
+  error.value = ''
+  result.value = ''
+  const response = await fetch(`${config.public.authApiBase}/signup/account`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({
       email: email.value,
       password: password.value,
       name: name.value,
       birth_date: birthDate.value,
-      terms_accepted: termsAccepted.value
+      terms_accepted: termsAccepted.value,
+      accepted_terms_id: terms.value?.terms_id
     })
   })
   const body = await response.json()
@@ -45,11 +87,21 @@ async function signup() {
     <section class="panel">
       <p class="eyebrow">OsolabAuth</p>
       <h1>Create account</h1>
-      <form class="form" @submit.prevent="signup">
+      <form class="form" @submit.prevent="createAccount">
         <label>
           Email
           <input v-model="email" type="email" autocomplete="email" required>
         </label>
+        <div class="button-row">
+          <button type="button" :disabled="!email" @click="sendSignupEmail">Send verification code</button>
+        </div>
+        <label>
+          Verification code
+          <input v-model="emailCode" inputmode="numeric" autocomplete="one-time-code" required>
+        </label>
+        <div class="button-row">
+          <button type="button" :disabled="!email || !emailCode" @click="verifySignupEmail">Verify email</button>
+        </div>
         <label>
           Password
           <input v-model="password" type="password" autocomplete="new-password" required>

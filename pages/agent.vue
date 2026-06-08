@@ -32,7 +32,7 @@ const selectedCreateScope = computed(() => createScopes.value.join(' '))
 const selectedTokenScope = computed(() => tokenScopes.value.join(' '))
 const tokenInspections = computed(() => [
   inspectJwt('ID Token', tokenResponse.value?.id_token),
-  inspectJwt('Access Token', tokenResponse.value?.access_token)
+  inspectOpaqueToken('Access Token', tokenResponse.value?.access_token)
 ])
 
 async function createAgent() {
@@ -133,10 +133,12 @@ function readError(body: Record<string, unknown>, fallback: string): string {
 type TokenInspection = {
   label: string
   available: boolean
+  tokenKind: 'jwt' | 'opaque' | 'missing'
   error: string
   claims: Record<string, unknown>
   importantClaims: Array<{ name: string, value: string }>
   rawPayload: string
+  opaqueValue: string
 }
 
 function inspectJwt(label: string, token: unknown): TokenInspection {
@@ -149,6 +151,7 @@ function inspectJwt(label: string, token: unknown): TokenInspection {
     return {
       ...emptyInspection(label),
       available: true,
+      tokenKind: 'jwt',
       error: 'Token is not a JWT.'
     }
   }
@@ -159,6 +162,7 @@ function inspectJwt(label: string, token: unknown): TokenInspection {
     return {
       label,
       available: true,
+      tokenKind: 'jwt',
       error: '',
       claims,
       importantClaims: [
@@ -171,14 +175,37 @@ function inspectJwt(label: string, token: unknown): TokenInspection {
         'scope',
         'exp'
       ].map((name) => ({ name, value: formatClaim(claims[name]) })),
-      rawPayload: JSON.stringify(claims, null, 2)
+      rawPayload: JSON.stringify(claims, null, 2),
+      opaqueValue: ''
     }
   } catch (error) {
     return {
       ...emptyInspection(label),
       available: true,
+      tokenKind: 'jwt',
       error: error instanceof Error ? error.message : 'Token payload decode failed.'
     }
+  }
+}
+
+function inspectOpaqueToken(label: string, token: unknown): TokenInspection {
+  if (typeof token !== 'string' || token.length === 0) {
+    return emptyInspection(label)
+  }
+
+  return {
+    label,
+    available: true,
+    tokenKind: 'opaque',
+    error: '',
+    claims: {},
+    importantClaims: [
+      { name: 'token_type', value: 'opaque' },
+      { name: 'prefix', value: token.slice(0, 4) || '-' },
+      { name: 'length', value: String(token.length) }
+    ],
+    rawPayload: '',
+    opaqueValue: maskToken(token)
   }
 }
 
@@ -186,10 +213,12 @@ function emptyInspection(label: string): TokenInspection {
   return {
     label,
     available: false,
+    tokenKind: 'missing',
     error: '',
     claims: {},
     importantClaims: [],
-    rawPayload: ''
+    rawPayload: '',
+    opaqueValue: ''
   }
 }
 
@@ -211,6 +240,14 @@ function formatClaim(value: unknown): string {
   }
 
   return String(value)
+}
+
+function maskToken(token: string): string {
+  if (token.length <= 12) {
+    return token
+  }
+
+  return `${token.slice(0, 8)}...${token.slice(-4)}`
 }
 </script>
 
@@ -308,6 +345,28 @@ function formatClaim(value: unknown): string {
               <h3>{{ inspection.label }}</h3>
               <p v-if="!inspection.available" class="notice">Token is not present in the response.</p>
               <p v-else-if="inspection.error" class="error">{{ inspection.error }}</p>
+              <template v-else-if="inspection.tokenKind === 'opaque'">
+                <p class="notice">
+                  This access token is opaque and is validated server-side. There is no JWT payload to decode.
+                </p>
+                <code class="token-value">{{ inspection.opaqueValue }}</code>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Property</th>
+                        <th>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="claim in inspection.importantClaims" :key="claim.name">
+                        <td>{{ claim.name }}</td>
+                        <td>{{ claim.value }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </template>
               <template v-else>
                 <div class="table-wrap">
                   <table>

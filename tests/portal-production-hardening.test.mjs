@@ -71,6 +71,22 @@ describe('Portal production hardening', () => {
   })
 
   /**
+   * Purpose: keep account registration behind the email verification flow.
+   * Input: signup page source.
+   * Expected: the page uses split signup endpoints and does not call the legacy direct signup endpoint.
+   */
+  it('uses verified signup endpoints instead of legacy direct signup', () => {
+    const page = readPage('pages/signup.vue')
+
+    assert.match(page, /\/signup\/email/)
+    assert.match(page, /\/signup\/verify/)
+    assert.match(page, /\/signup\/account/)
+    assert.match(page, /credentials: 'include'/)
+    assert.match(page, /accepted_terms_id: terms\.value\?\.terms_id/)
+    assert.doesNotMatch(page, /\/signup[`'"]/)
+  })
+
+  /**
    * Purpose: prevent empty step-up protected account operation submissions.
    * Input: password change and withdrawal page sources.
    * Expected: password and step-up token inputs are required.
@@ -111,10 +127,13 @@ describe('Portal production hardening', () => {
 
     assert.match(page, /Token inspector/)
     assert.match(page, /function inspectJwt/)
+    assert.match(page, /function inspectOpaqueToken/)
     assert.match(page, /decodeBase64UrlJson/)
     assert.match(page, /principal_type/)
     assert.match(page, /owner_sub/)
     assert.match(page, /delegation_id/)
     assert.match(page, /Signatures are not verified here/)
+    assert.match(page, /This access token is opaque and is validated server-side/)
+    assert.match(page, /There is no JWT payload to decode/)
   })
 })

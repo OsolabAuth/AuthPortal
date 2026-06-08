@@ -201,6 +201,15 @@ pre {
   padding: 16px;
 }
 
+.token-value {
+  display: inline-block;
+  border-radius: 6px;
+  background: #edf2f7;
+  color: #18202f;
+  padding: 8px 10px;
+  word-break: break-all;
+}
+
 @media (max-width: 840px) {
   .grid-two {
     grid-template-columns: 1fr;
