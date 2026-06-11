@@ -10,6 +10,16 @@ const terms = ref<{ terms_id?: string, title: string, body: string, version: str
 const result = ref('')
 const error = ref('')
 
+function formBody(values: Record<string, string | boolean | undefined>) {
+  const body = new URLSearchParams()
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined) {
+      body.set(key, String(value))
+    }
+  }
+  return body
+}
+
 onMounted(async () => {
   const response = await fetch(`${config.public.authApiBase}/terms/current`)
   if (response.ok) {
@@ -22,9 +32,9 @@ async function sendSignupEmail() {
   result.value = ''
   const response = await fetch(`${config.public.authApiBase}/signup/email`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     credentials: 'include',
-    body: JSON.stringify({ email: email.value })
+    body: formBody({ email: email.value })
   })
   const body = await response.json()
   if (!response.ok) {
@@ -40,10 +50,9 @@ async function verifySignupEmail() {
   result.value = ''
   const response = await fetch(`${config.public.authApiBase}/signup/verify`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     credentials: 'include',
-    body: JSON.stringify({
-      email: email.value,
+    body: formBody({
       code: emailCode.value
     })
   })
@@ -61,15 +70,13 @@ async function createAccount() {
   result.value = ''
   const response = await fetch(`${config.public.authApiBase}/signup/account`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     credentials: 'include',
-    body: JSON.stringify({
-      email: email.value,
+    body: formBody({
       password: password.value,
       name: name.value,
-      birth_date: birthDate.value,
-      terms_accepted: termsAccepted.value,
-      accepted_terms_id: terms.value?.terms_id
+      birthdate: birthDate.value,
+      terms_accepted: termsAccepted.value
     })
   })
   const body = await response.json()
