@@ -44,6 +44,10 @@ export type SignupAccountResponse = {
 };
 
 export type TermsResponse = {
+  terms_id?: string;
+  title?: string;
+  body?: string;
+  version?: string;
   client_id?: string;
   terms?: TermItem[];
   scopes?: string[];

@@ -97,6 +97,15 @@ export function useAuthApi() {
     return await readResponse<T>(response);
   };
 
+  const get = async <T>(path: string): Promise<AuthApiResult<T>> => {
+    const response = await fetch(resolveApiPath(path), {
+      method: "GET",
+      credentials: "include"
+    });
+
+    return await readResponse<T>(response);
+  };
+
   const login = async (input: { email: string; password: string }) => {
     return await postForm<LoginResponse>("/login", {
       email: input.email,
@@ -116,16 +125,22 @@ export function useAuthApi() {
     });
   };
 
-  const signupAccount = async (input: { password: string; name: string; birthdate: string }) => {
+  const signupAccount = async (input: {
+    password: string;
+    name: string;
+    birthdate: string;
+    termsAccepted: boolean;
+  }) => {
     return await postForm<SignupAccountResponse>("/signup/account", {
       password: input.password,
       name: input.name,
-      birthdate: input.birthdate
+      birthdate: input.birthdate,
+      terms_accepted: input.termsAccepted
     });
   };
 
   const fetchTerms = async () => {
-    return await postForm<TermsResponse>("/terms/list", {});
+    return await get<TermsResponse>("/terms/current");
   };
 
   const submitTerms = async (input: { accepted: boolean; termIds: string[] }) => {

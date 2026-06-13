@@ -87,6 +87,20 @@
         required
       />
 
+      <section class="message message-info">
+        <strong>{{ terms?.title || "OsolabAuth利用規約" }}</strong>
+        <span v-if="terms?.version"> v{{ terms.version }}</span>
+        <p>{{ terms?.body || "アカウント登録には利用規約への同意が必要です。" }}</p>
+      </section>
+
+      <label class="term-item">
+        <input v-model="termsAccepted" type="checkbox" required>
+        <span>
+          <strong>利用規約に同意します</strong>
+          <small>同意しない場合、アカウント登録は完了できません。</small>
+        </span>
+      </label>
+
       <p v-if="errorMessage" class="message message-error">{{ errorMessage }}</p>
 
       <button class="button" type="submit" :disabled="pending">
@@ -101,6 +115,8 @@
 </template>
 
 <script setup lang="ts">
+import type { TermsResponse } from "~/types/auth";
+
 useHead({ title: "Signup" });
 
 type SignupStage = "email" | "verify" | "password";
@@ -114,6 +130,8 @@ const name = ref("");
 const birthdate = ref("");
 const password = ref("");
 const passwordConfirm = ref("");
+const terms = ref<TermsResponse | null>(null);
+const termsAccepted = ref(false);
 const pending = ref(false);
 const errorMessage = ref("");
 
@@ -169,6 +187,11 @@ async function submitAccount() {
     return;
   }
 
+  if (!termsAccepted.value) {
+    errorMessage.value = "利用規約への同意が必要です。";
+    return;
+  }
+
   pending.value = true;
   errorMessage.value = "";
 
@@ -176,7 +199,8 @@ async function submitAccount() {
     const result = await api.signupAccount({
       password: password.value,
       name: name.value.trim(),
-      birthdate: birthdate.value
+      birthdate: birthdate.value,
+      termsAccepted: termsAccepted.value
     });
 
     if (result.ok && result.data.result === "redirect" && result.location) {
@@ -197,6 +221,17 @@ async function submitAccount() {
   }
 }
 
+async function loadTerms() {
+  try {
+    const result = await api.fetchTerms();
+    if (result.ok) {
+      terms.value = result.data;
+    }
+  } catch {
+    terms.value = null;
+  }
+}
+
 function resetToEmail() {
   stage.value = "email";
   verificationCode.value = "";
@@ -204,6 +239,9 @@ function resetToEmail() {
   birthdate.value = "";
   password.value = "";
   passwordConfirm.value = "";
+  termsAccepted.value = false;
   errorMessage.value = "";
 }
+
+onMounted(loadTerms);
 </script>

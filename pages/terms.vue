@@ -98,7 +98,17 @@ async function loadTerms() {
       return;
     }
 
-    terms.value = (result.data.terms || []).map((term) => ({
+    const currentTerm = result.data.terms_id
+      ? [{
+          term_id: result.data.terms_id,
+          title: result.data.title || "OsolabAuth利用規約",
+          version: result.data.version || "current",
+          term_url: undefined,
+          required: true
+        }]
+      : [];
+
+    terms.value = (result.data.terms || currentTerm).map((term) => ({
       ...term,
       term_url: toSafeTermUrl(term.term_url)
     }));
