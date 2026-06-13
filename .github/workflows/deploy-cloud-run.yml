@@ -1,0 +1,162 @@
+name: Build and Deploy AuthPortal to Cloud Run
+run-name: Deploy AuthPortal from ${{ inputs.source_ref }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Branch, tag, or SHA to build and deploy
+        required: true
+        default: master
+        type: string
+      deploy:
+        description: Deploy to Cloud Run after pushing the image
+        required: true
+        default: true
+        type: boolean
+      image_tag:
+        description: Optional image tag. Defaults to the checked-out commit SHA.
+        required: false
+        type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_REGION: ${{ vars.GCP_REGION || 'us-west1' }}
+      ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY || 'auth' }}
+      CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE || 'authfoundation-portal' }}
+      CLOUD_RUN_IMAGE_NAME: ${{ vars.CLOUD_RUN_IMAGE_NAME || 'authfoundation-auth-ui' }}
+      NUXT_PUBLIC_AUTH_API_BASE: ${{ vars.NUXT_PUBLIC_AUTH_API_BASE || 'https://auth.osolab-auth.jp' }}
+      NUXT_PUBLIC_AUTH_CLIENT_ID: ${{ vars.NUXT_PUBLIC_AUTH_CLIENT_ID || '00000000000000000000000000000000' }}
+      NUXT_PUBLIC_AUTH_SCOPE: ${{ vars.NUXT_PUBLIC_AUTH_SCOPE || 'openid profile email' }}
+      CLOUD_RUN_ALLOW_UNAUTHENTICATED: ${{ vars.CLOUD_RUN_ALLOW_UNAUTHENTICATED || 'true' }}
+      CLOUD_RUN_CPU: ${{ vars.CLOUD_RUN_CPU || '1' }}
+      CLOUD_RUN_MEMORY: ${{ vars.CLOUD_RUN_MEMORY || '512Mi' }}
+      CLOUD_RUN_INGRESS: ${{ vars.CLOUD_RUN_INGRESS || 'all' }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+    steps:
+      - name: Checkout selected source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      - name: Validate workflow configuration
+        shell: bash
+        run: |
+          missing=0
+          for name in GCP_PROJECT_ID GCP_WORKLOAD_IDENTITY_PROVIDER GCP_SERVICE_ACCOUNT; do
+            if [ -z "${!name}" ]; then
+              echo "${name} is required." >&2
+              missing=1
+            fi
+          done
+
+          for path in package.json Dockerfile; do
+            if [ ! -f "${path}" ]; then
+              echo "${path} is required in source_ref=${{ inputs.source_ref }}." >&2
+              missing=1
+            fi
+          done
+
+          if [ "${missing}" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build application
+        run: npm run build
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Resolve image URI
+        id: image
+        shell: bash
+        run: |
+          tag="${{ inputs.image_tag }}"
+          if [ -z "${tag}" ]; then
+            tag="${GITHUB_SHA}"
+          fi
+
+          image_base="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${CLOUD_RUN_IMAGE_NAME}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "image_uri=${image_base}:${tag}" >> "${GITHUB_OUTPUT}"
+          echo "short_image_uri=${image_base}:${GITHUB_SHA::7}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build container image
+        run: |
+          docker build \
+            --file ./Dockerfile \
+            --tag "${{ steps.image.outputs.image_uri }}" \
+            --tag "${{ steps.image.outputs.short_image_uri }}" \
+            .
+
+      - name: Push container image
+        run: |
+          docker push "${{ steps.image.outputs.image_uri }}"
+          docker push "${{ steps.image.outputs.short_image_uri }}"
+
+      - name: Deploy to Cloud Run
+        if: ${{ inputs.deploy }}
+        shell: bash
+        run: |
+          deploy_args=(
+            run deploy "${CLOUD_RUN_SERVICE}"
+            --project "${GCP_PROJECT_ID}"
+            --region "${GCP_REGION}"
+            --image "${{ steps.image.outputs.image_uri }}"
+            --platform managed
+            --port 8080
+            --cpu "${CLOUD_RUN_CPU}"
+            --memory "${CLOUD_RUN_MEMORY}"
+            --ingress "${CLOUD_RUN_INGRESS}"
+            --update-env-vars "NUXT_PUBLIC_AUTH_API_BASE=${NUXT_PUBLIC_AUTH_API_BASE},NUXT_PUBLIC_AUTH_CLIENT_ID=${NUXT_PUBLIC_AUTH_CLIENT_ID},NUXT_PUBLIC_AUTH_SCOPE=${NUXT_PUBLIC_AUTH_SCOPE}"
+          )
+
+          case "${CLOUD_RUN_ALLOW_UNAUTHENTICATED,,}" in
+            true|1|yes)
+              deploy_args+=(--allow-unauthenticated)
+              ;;
+            false|0|no)
+              deploy_args+=(--no-allow-unauthenticated)
+              ;;
+            *)
+              echo "CLOUD_RUN_ALLOW_UNAUTHENTICATED must be true or false." >&2
+              exit 1
+              ;;
+          esac
+
+          gcloud "${deploy_args[@]}"
+
+      - name: Show image URI
+        run: echo "Built image ${{ steps.image.outputs.image_uri }}"
