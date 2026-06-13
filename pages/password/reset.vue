@@ -4,16 +4,20 @@ const email = ref('')
 const birthDate = ref('')
 const emailCode = ref('')
 const newPassword = ref('')
+const newPasswordConfirm = ref('')
 const result = ref('')
 const error = ref('')
 
 async function sendEmailCode() {
   error.value = ''
   result.value = ''
-  const response = await fetch(`${config.public.authApiBase}/mfa/email/start`, {
+  const response = await fetch(`${config.public.authApiBase}/password/reset/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email.value })
+    body: JSON.stringify({
+      email: email.value,
+      birth_date: birthDate.value
+    })
   })
   const body = await response.json()
   if (!response.ok) {
@@ -21,12 +25,17 @@ async function sendEmailCode() {
     return
   }
 
-  result.value = 'email_code_sent'
+  result.value = body.result || 'reset_challenge_started'
 }
 
 async function resetPassword() {
   error.value = ''
   result.value = ''
+  if (newPassword.value !== newPasswordConfirm.value) {
+    error.value = 'new passwords do not match'
+    return
+  }
+
   const response = await fetch(`${config.public.authApiBase}/password/reset`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -61,7 +70,7 @@ async function resetPassword() {
           <input v-model="birthDate" type="date" required>
         </label>
         <div class="button-row">
-          <button type="button" :disabled="!email" @click="sendEmailCode">Send email code</button>
+          <button type="button" :disabled="!email || !birthDate" @click="sendEmailCode">Send email code</button>
         </div>
         <label>
           Email code
@@ -70,6 +79,10 @@ async function resetPassword() {
         <label>
           New password
           <input v-model="newPassword" type="password" autocomplete="new-password" required>
+        </label>
+        <label>
+          New password confirmation
+          <input v-model="newPasswordConfirm" type="password" autocomplete="new-password" required>
         </label>
         <button type="submit">Reset password</button>
       </form>

@@ -111,16 +111,21 @@ describe('Portal production hardening', () => {
   /**
    * Purpose: prevent incomplete password reset submissions before API validation.
    * Input: password reset page source.
-   * Expected: login email, birth date, email code, and new password inputs are required.
+   * Expected: login email, birth date, email code, new password, and confirmation inputs are required.
    */
   it('requires password reset identity fields', () => {
     const page = readPage('pages/password/reset.vue')
 
+    assert.match(page, /\/password\/reset\/start/)
+    assert.doesNotMatch(page, /\/mfa\/email\/start/)
+    assert.match(page, /birth_date: birthDate\.value/)
+    assert.match(page, /:disabled="!email \|\| !birthDate"/)
     assert.match(page, /v-model="email" type="email" autocomplete="email" required/)
     assert.match(page, /v-model="birthDate" type="date" required/)
     assert.match(page, /v-model="emailCode" inputmode="numeric" autocomplete="one-time-code" required/)
     assert.match(page, /email_code: emailCode\.value/)
     assert.match(page, /v-model="newPassword" type="password" autocomplete="new-password" required/)
+    assert.match(page, /v-model="newPasswordConfirm" type="password" autocomplete="new-password" required/)
   })
 
   /**
