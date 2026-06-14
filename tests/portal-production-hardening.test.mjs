@@ -227,4 +227,24 @@ describe('Portal production hardening', () => {
     assert.match(scenarios, /Run date:/)
     assert.match(scenarios, /Inferred spec update:/)
   })
+
+  /**
+   * Purpose: fail production builds before deploying with missing or placeholder public auth settings.
+   * Input: package scripts and Cloud Run deploy workflow source.
+   * Expected: build runs environment validation and workflow requires the public auth settings.
+   */
+  it('validates public auth environment before build and deploy', () => {
+    const packageJson = readPage('package.json')
+    const deployWorkflow = readPage('.github/workflows/deploy-cloud-run.yml')
+    const validator = readPage('scripts/validate-build-env.mjs')
+
+    assert.match(packageJson, /"build": "npm run validate:build-env && nuxt build"/)
+    assert.match(packageJson, /"validate:build-env": "node scripts\/validate-build-env\.mjs"/)
+    assert.match(deployWorkflow, /NUXT_PUBLIC_AUTH_API_BASE: \$\{\{ vars\.NUXT_PUBLIC_AUTH_API_BASE \}\}/)
+    assert.match(deployWorkflow, /NUXT_PUBLIC_AUTH_CLIENT_ID: \$\{\{ vars\.NUXT_PUBLIC_AUTH_CLIENT_ID \}\}/)
+    assert.match(deployWorkflow, /NUXT_PUBLIC_AUTH_SCOPE: \$\{\{ vars\.NUXT_PUBLIC_AUTH_SCOPE \}\}/)
+    assert.match(deployWorkflow, /NUXT_PUBLIC_AUTH_API_BASE NUXT_PUBLIC_AUTH_CLIENT_ID NUXT_PUBLIC_AUTH_SCOPE/)
+    assert.match(validator, /NUXT_PUBLIC_AUTH_CLIENT_ID/)
+    assert.match(validator, /00000000000000000000000000000000/)
+  })
 })

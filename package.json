@@ -4,9 +4,10 @@
   "type": "module",
   "scripts": {
     "dev": "nuxt dev --host 0.0.0.0 --port 5700",
-    "build": "nuxt build",
+    "build": "npm run validate:build-env && nuxt build",
     "preview": "nuxt preview --host 0.0.0.0 --port 5700",
     "typecheck": "nuxt typecheck",
+    "validate:build-env": "node scripts/validate-build-env.mjs",
     "test": "node --test"
   },
   "dependencies": {
