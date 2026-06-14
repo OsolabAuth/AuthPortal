@@ -9,6 +9,9 @@ const termsAccepted = ref(false)
 const terms = ref<{ terms_id?: string, title: string, body: string, version: string } | null>(null)
 const result = ref('')
 const error = ref('')
+const sendingEmail = ref(false)
+const verifyingEmail = ref(false)
+const creatingAccount = ref(false)
 
 function formBody(values: Record<string, string | boolean | undefined>) {
   const body = new URLSearchParams()
@@ -30,62 +33,80 @@ onMounted(async () => {
 async function sendSignupEmail() {
   error.value = ''
   result.value = ''
-  const response = await fetch(`${config.public.authApiBase}/signup/email`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    credentials: 'include',
-    body: formBody({ email: email.value })
-  })
-  const body = await response.json()
-  if (!response.ok) {
-    error.value = body.error_description || 'email verification failed'
-    return
-  }
+  sendingEmail.value = true
+  try {
+    const response = await fetch(`${config.public.authApiBase}/signup/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'include',
+      body: formBody({ email: email.value })
+    })
+    const body = await response.json()
+    if (!response.ok) {
+      error.value = body.error_description || 'email verification failed'
+      return
+    }
 
-  result.value = 'Verification code sent.'
+    result.value = 'Verification code sent.'
+  }
+  finally {
+    sendingEmail.value = false
+  }
 }
 
 async function verifySignupEmail() {
   error.value = ''
   result.value = ''
-  const response = await fetch(`${config.public.authApiBase}/signup/verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    credentials: 'include',
-    body: formBody({
-      code: emailCode.value
+  verifyingEmail.value = true
+  try {
+    const response = await fetch(`${config.public.authApiBase}/signup/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'include',
+      body: formBody({
+        code: emailCode.value
+      })
     })
-  })
-  const body = await response.json()
-  if (!response.ok) {
-    error.value = body.error_description || 'verification failed'
-    return
-  }
+    const body = await response.json()
+    if (!response.ok) {
+      error.value = body.error_description || 'verification failed'
+      return
+    }
 
-  result.value = 'Email verified.'
+    result.value = 'Email verified.'
+  }
+  finally {
+    verifyingEmail.value = false
+  }
 }
 
 async function createAccount() {
   error.value = ''
   result.value = ''
-  const response = await fetch(`${config.public.authApiBase}/signup/account`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    credentials: 'include',
-    body: formBody({
-      password: password.value,
-      name: name.value,
-      birthdate: birthDate.value,
-      terms_accepted: termsAccepted.value
+  creatingAccount.value = true
+  try {
+    const response = await fetch(`${config.public.authApiBase}/signup/account`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      credentials: 'include',
+      body: formBody({
+        password: password.value,
+        name: name.value,
+        birthdate: birthDate.value,
+        terms_accepted: termsAccepted.value
+      })
     })
-  })
-  const body = await response.json()
-  if (!response.ok) {
-    error.value = body.error_description || 'signup failed'
-    return
-  }
+    const body = await response.json()
+    if (!response.ok) {
+      error.value = body.error_description || 'signup failed'
+      return
+    }
 
-  result.value = `Created ${body.email}`
+    result.value = `Created ${body.email}`
+  }
+  finally {
+    creatingAccount.value = false
+  }
 }
 </script>
 
@@ -100,14 +121,18 @@ async function createAccount() {
           <input v-model="email" type="email" autocomplete="email" required>
         </label>
         <div class="button-row">
-          <button type="button" :disabled="!email" @click="sendSignupEmail">Send verification code</button>
+          <button type="button" :disabled="!email || sendingEmail" @click="sendSignupEmail">
+            {{ sendingEmail ? 'Sending...' : 'Send verification code' }}
+          </button>
         </div>
         <label>
           Verification code
           <input v-model="emailCode" inputmode="numeric" autocomplete="one-time-code" required>
         </label>
         <div class="button-row">
-          <button type="button" :disabled="!email || !emailCode" @click="verifySignupEmail">Verify email</button>
+          <button type="button" :disabled="!email || !emailCode || verifyingEmail" @click="verifySignupEmail">
+            {{ verifyingEmail ? 'Verifying...' : 'Verify email' }}
+          </button>
         </div>
         <label>
           Password
@@ -130,7 +155,9 @@ async function createAccount() {
           <input v-model="termsAccepted" type="checkbox" required>
           I agree to the OsolabAuth terms.
         </label>
-        <button type="submit">Create account</button>
+        <button type="submit" :disabled="creatingAccount">
+          {{ creatingAccount ? 'Creating...' : 'Create account' }}
+        </button>
       </form>
       <NuxtLink class="text-link" to="/login">Back to login</NuxtLink>
       <p v-if="error" class="error">{{ error }}</p>

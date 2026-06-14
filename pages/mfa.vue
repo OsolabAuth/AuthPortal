@@ -7,46 +7,73 @@ const authenticatorSecret = ref('')
 const authenticatorUri = ref('')
 const stepUpToken = ref('')
 const error = ref('')
+const sendingEmail = ref(false)
+const verifyingEmail = ref(false)
+const settingUpAuthenticator = ref(false)
+const verifyingAuthenticator = ref(false)
 
 async function startEmail() {
   error.value = ''
-  const response = await fetch(`${config.public.authApiBase}/mfa/email/start`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email.value })
-  })
-  const body = await response.json()
-  if (!response.ok) {
-    error.value = body.error_description || 'email challenge failed'
-    return
+  sendingEmail.value = true
+  try {
+    const response = await fetch(`${config.public.authApiBase}/mfa/email/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.value })
+    })
+    const body = await response.json()
+    if (!response.ok) {
+      error.value = body.error_description || 'email challenge failed'
+    }
+  }
+  finally {
+    sendingEmail.value = false
   }
 }
 
 async function verifyEmail() {
-  await verify('/mfa/email/verify', emailCode.value)
+  verifyingEmail.value = true
+  try {
+    await verify('/mfa/email/verify', emailCode.value)
+  }
+  finally {
+    verifyingEmail.value = false
+  }
 }
 
 async function setupAuthenticator() {
   error.value = ''
-  const response = await fetch(`${config.public.authApiBase}/mfa/authenticator/setup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: email.value,
-      step_up_token: stepUpToken.value
+  settingUpAuthenticator.value = true
+  try {
+    const response = await fetch(`${config.public.authApiBase}/mfa/authenticator/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.value,
+        step_up_token: stepUpToken.value
+      })
     })
-  })
-  const body = await response.json()
-  if (!response.ok) {
-    error.value = body.error_description || 'authenticator setup failed'
-    return
+    const body = await response.json()
+    if (!response.ok) {
+      error.value = body.error_description || 'authenticator setup failed'
+      return
+    }
+    authenticatorSecret.value = body.secret
+    authenticatorUri.value = body.otpauth_uri
   }
-  authenticatorSecret.value = body.secret
-  authenticatorUri.value = body.otpauth_uri
+  finally {
+    settingUpAuthenticator.value = false
+  }
 }
 
 async function verifyAuthenticator() {
-  await verify('/mfa/authenticator/verify', authenticatorCode.value)
+  verifyingAuthenticator.value = true
+  try {
+    await verify('/mfa/authenticator/verify', authenticatorCode.value)
+  }
+  finally {
+    verifyingAuthenticator.value = false
+  }
 }
 
 async function verify(path: string, code: string) {
@@ -77,17 +104,21 @@ async function verify(path: string, code: string) {
       </label>
 
       <div class="stack">
-        <button type="button" @click="startEmail">Send email code</button>
+        <button type="button" :disabled="!email || sendingEmail" @click="startEmail">
+          {{ sendingEmail ? 'Sending...' : 'Send email code' }}
+        </button>
         <label>
           Email code
           <input v-model="emailCode" inputmode="numeric" autocomplete="one-time-code" required>
         </label>
-        <button type="button" @click="verifyEmail">Verify email code</button>
+        <button type="button" :disabled="!email || !emailCode || verifyingEmail" @click="verifyEmail">
+          {{ verifyingEmail ? 'Verifying...' : 'Verify email code' }}
+        </button>
       </div>
 
       <div class="stack">
-        <button type="button" :disabled="!email || !stepUpToken" @click="setupAuthenticator">
-          Setup authenticator
+        <button type="button" :disabled="!email || !stepUpToken || settingUpAuthenticator" @click="setupAuthenticator">
+          {{ settingUpAuthenticator ? 'Setting up...' : 'Setup authenticator' }}
         </button>
         <p class="notice">Authenticator setup requires a recent step-up token.</p>
         <p v-if="authenticatorSecret">Secret: {{ authenticatorSecret }}</p>
@@ -96,7 +127,9 @@ async function verify(path: string, code: string) {
           Authenticator code
           <input v-model="authenticatorCode" inputmode="numeric" autocomplete="one-time-code" required>
         </label>
-        <button type="button" @click="verifyAuthenticator">Verify authenticator</button>
+        <button type="button" :disabled="!email || !authenticatorCode || verifyingAuthenticator" @click="verifyAuthenticator">
+          {{ verifyingAuthenticator ? 'Verifying...' : 'Verify authenticator' }}
+        </button>
       </div>
 
       <p v-if="error" class="error">{{ error }}</p>

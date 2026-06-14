@@ -97,7 +97,10 @@ describe('Portal production hardening', () => {
     const page = readPage('pages/mfa.vue')
 
     assert.match(page, /type="email" autocomplete="email" required/)
+    assert.match(page, /sendingEmail = ref\(false\)/)
+    assert.match(page, /:disabled="!email \|\| sendingEmail"/)
     assert.match(page, /v-model="emailCode" inputmode="numeric" autocomplete="one-time-code" required/)
+    assert.match(page, /:disabled="!email \|\| !emailCode \|\| verifyingEmail"/)
     assert.match(page, /v-model="authenticatorCode" inputmode="numeric" autocomplete="one-time-code" required/)
   })
 
@@ -110,7 +113,7 @@ describe('Portal production hardening', () => {
     const page = readPage('pages/mfa.vue')
 
     assert.match(page, /step_up_token: stepUpToken\.value/)
-    assert.match(page, /:disabled="!email \|\| !stepUpToken"/)
+    assert.match(page, /:disabled="!email \|\| !stepUpToken \|\| settingUpAuthenticator"/)
   })
 
   /**
@@ -126,6 +129,12 @@ describe('Portal production hardening', () => {
     assert.match(page, /\/signup\/account/)
     assert.match(page, /credentials: 'include'/)
     assert.match(page, /Content-Type': 'application\/x-www-form-urlencoded'/)
+    assert.match(page, /sendingEmail = ref\(false\)/)
+    assert.match(page, /:disabled="!email \|\| sendingEmail"/)
+    assert.match(page, /verifyingEmail = ref\(false\)/)
+    assert.match(page, /:disabled="!email \|\| !emailCode \|\| verifyingEmail"/)
+    assert.match(page, /creatingAccount = ref\(false\)/)
+    assert.match(page, /:disabled="creatingAccount"/)
     assert.match(page, /formBody\(\{ email: email\.value \}\)/)
     assert.match(page, /formBody\(\{\s*code: emailCode\.value\s*\}\)/)
     assert.match(page, /birthdate: birthDate\.value/)
