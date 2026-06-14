@@ -110,6 +110,8 @@ async function exchangeToken() {
   sessionStorage.removeItem('code_verifier')
   sessionStorage.removeItem('state')
   sessionStorage.removeItem('nonce')
+  sessionStorage.setItem('auth_access_token', String(body.access_token || ''))
+  sessionStorage.setItem('auth_id_token', idToken)
   tokenResponse.value = JSON.stringify(maskTokenResponse(body), null, 2)
   status.value = 'authenticated'
 }
@@ -135,6 +137,7 @@ onMounted(() => {
       <p v-if="status === 'checking'">Checking authorization response...</p>
       <p v-if="status === 'exchanging'">Exchanging authorization code...</p>
       <p v-if="status === 'authenticated'" class="success">Login complete. Token exchange succeeded.</p>
+      <NuxtLink v-if="status === 'authenticated'" class="text-link" to="/me">Open my page</NuxtLink>
       <button v-if="status === 'error'" type="button" :disabled="!code || !stateMatches" @click="exchangeToken">Retry token exchange</button>
       <p v-if="error" class="error">{{ error }}</p>
       <pre v-if="tokenResponse">{{ tokenResponse }}</pre>

@@ -15,6 +15,11 @@ async function logout() {
     error.value = body.error_description || 'logout failed'
     return
   }
+  sessionStorage.removeItem('auth_access_token')
+  sessionStorage.removeItem('auth_id_token')
+  sessionStorage.removeItem('code_verifier')
+  sessionStorage.removeItem('state')
+  sessionStorage.removeItem('nonce')
   result.value = body.result
 }
 </script>

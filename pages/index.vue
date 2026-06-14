@@ -45,6 +45,7 @@ async function startLogin() {
       <h1>OIDC Login</h1>
       <p>Start Authorization Code + PKCE login.</p>
       <button type="button" @click="startLogin">Login with OsolabAuth</button>
+      <NuxtLink class="text-link" to="/me">My page</NuxtLink>
       <NuxtLink class="text-link" to="/agent">Manage AI agents</NuxtLink>
       <p v-if="error" class="error">{{ error }}</p>
     </section>

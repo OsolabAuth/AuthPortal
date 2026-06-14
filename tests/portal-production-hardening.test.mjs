@@ -59,9 +59,33 @@ describe('Portal production hardening', () => {
     assert.match(callback, /void exchangeToken\(\)/)
     assert.match(callback, /sessionStorage\.getItem\('nonce'\)/)
     assert.match(callback, /payload\.nonce !== expectedNonce/)
+    assert.match(callback, /sessionStorage\.setItem\('auth_access_token'/)
+    assert.match(callback, /sessionStorage\.setItem\('auth_id_token'/)
     assert.match(callback, /Login complete\. Token exchange succeeded\./)
+    assert.match(callback, /to="\/me"/)
     assert.match(callback, /maskTokenResponse/)
     assert.doesNotMatch(callback, /Exchange token/)
+  })
+
+  /**
+   * Purpose: expose a logged-in portal landing page backed by OIDC UserInfo.
+   * Input: my page, index page, and logout page sources.
+   * Expected: the portal stores only session-scoped tokens, loads UserInfo with Bearer auth, and clears tokens on logout.
+   */
+  it('adds a session-backed my page for logged-in users', () => {
+    const index = readPage('pages/index.vue')
+    const me = readPage('pages/me.vue')
+    const logout = readPage('pages/logout.vue')
+
+    assert.match(index, /to="\/me"/)
+    assert.match(me, /\/userinfo/)
+    assert.match(me, /Authorization: `Bearer \$\{accessToken\}`/)
+    assert.match(me, /sessionStorage\.getItem\('auth_access_token'\)/)
+    assert.match(me, /profile\.sub/)
+    assert.match(me, /profile\.email/)
+    assert.match(me, /profile\.name/)
+    assert.match(logout, /sessionStorage\.removeItem\('auth_access_token'\)/)
+    assert.match(logout, /sessionStorage\.removeItem\('auth_id_token'\)/)
   })
 
   /**
