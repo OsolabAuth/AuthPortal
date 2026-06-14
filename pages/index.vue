@@ -12,6 +12,7 @@ async function startLogin() {
   const challenge = await s256Challenge(verifier)
   sessionStorage.setItem('code_verifier', verifier)
   sessionStorage.setItem('state', state)
+  sessionStorage.setItem('nonce', nonce)
 
   const redirectUri = `${window.location.origin}/callback`
   const params = new URLSearchParams({
@@ -41,8 +42,8 @@ async function startLogin() {
   <main class="app-shell">
     <section class="panel">
       <p class="eyebrow">OsolabAuth</p>
-      <h1>AuthPortal rebuild</h1>
-      <p>Minimal Authorization Code + PKCE flow is available for development.</p>
+      <h1>OIDC Login</h1>
+      <p>Start Authorization Code + PKCE login.</p>
       <button type="button" @click="startLogin">Login with OsolabAuth</button>
       <NuxtLink class="text-link" to="/agent">Manage AI agents</NuxtLink>
       <p v-if="error" class="error">{{ error }}</p>

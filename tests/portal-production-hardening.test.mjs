@@ -46,6 +46,25 @@ describe('Portal production hardening', () => {
   })
 
   /**
+   * Purpose: make the OIDC login flow complete without a manual token-exchange step.
+   * Input: OIDC start and callback page sources.
+   * Expected: nonce is persisted, callback automatically exchanges the code, validates nonce, and masks tokens.
+   */
+  it('automatically completes OIDC callback token exchange', () => {
+    const index = readPage('pages/index.vue')
+    const callback = readPage('pages/callback.vue')
+
+    assert.match(index, /sessionStorage\.setItem\('nonce', nonce\)/)
+    assert.match(callback, /onMounted\(\(\) => \{/)
+    assert.match(callback, /void exchangeToken\(\)/)
+    assert.match(callback, /sessionStorage\.getItem\('nonce'\)/)
+    assert.match(callback, /payload\.nonce !== expectedNonce/)
+    assert.match(callback, /Login complete\. Token exchange succeeded\./)
+    assert.match(callback, /maskTokenResponse/)
+    assert.doesNotMatch(callback, /Exchange token/)
+  })
+
+  /**
    * Purpose: prevent empty MFA verification submissions before API validation.
    * Input: MFA page source.
    * Expected: email, email code, and authenticator code inputs are required.
