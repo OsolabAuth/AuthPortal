@@ -253,9 +253,12 @@ function maskToken(token: string): string {
 
 <template>
   <main class="app-shell">
-    <section class="panel panel-wide">
-      <p class="eyebrow">OsolabAuth</p>
-      <h1>AI Agent management</h1>
+    <section class="panel panel-wide auth-panel">
+      <header class="page-header">
+        <span class="brand-mark">OsolabAuth</span>
+        <h1>AI Agent management</h1>
+        <p class="page-copy">Create delegated agents, rotate credentials, and inspect issued tokens.</p>
+      </header>
 
       <div class="grid-two">
         <section class="stack">
@@ -391,7 +394,10 @@ function maskToken(token: string): string {
         </section>
       </div>
 
-      <NuxtLink class="text-link" to="/mfa">Get step-up token</NuxtLink>
+      <div class="inline-links">
+        <NuxtLink class="text-link" to="/mfa">Get step-up token</NuxtLink>
+        <NuxtLink class="text-link" to="/me">Back to my page</NuxtLink>
+      </div>
     </section>
   </main>
 </template>

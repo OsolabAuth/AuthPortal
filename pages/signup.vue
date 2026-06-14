@@ -112,9 +112,12 @@ async function createAccount() {
 
 <template>
   <main class="app-shell">
-    <section class="panel">
-      <p class="eyebrow">OsolabAuth</p>
-      <h1>Create account</h1>
+    <section class="panel auth-panel">
+      <header class="page-header">
+        <span class="brand-mark">OsolabAuth</span>
+        <h1>Create account</h1>
+        <p class="page-copy">Verify your email, then register your profile and password.</p>
+      </header>
       <form class="form" @submit.prevent="createAccount">
         <label>
           Email
@@ -159,7 +162,10 @@ async function createAccount() {
           {{ creatingAccount ? 'Creating...' : 'Create account' }}
         </button>
       </form>
-      <NuxtLink class="text-link" to="/login">Back to login</NuxtLink>
+      <div class="inline-links">
+        <NuxtLink class="text-link" to="/login">Back to sign in</NuxtLink>
+        <NuxtLink class="text-link" to="/">Portal home</NuxtLink>
+      </div>
       <p v-if="error" class="error">{{ error }}</p>
       <p v-if="result" class="success">{{ result }}</p>
     </section>

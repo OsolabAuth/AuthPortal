@@ -31,9 +31,12 @@ async function changePassword() {
 
 <template>
   <main class="app-shell">
-    <section class="panel">
-      <p class="eyebrow">OsolabAuth</p>
-      <h1>Change password</h1>
+    <section class="panel auth-panel">
+      <header class="page-header">
+        <span class="brand-mark">OsolabAuth</span>
+        <h1>Change password</h1>
+        <p class="page-copy">A recent step-up token is required for this account operation.</p>
+      </header>
       <form class="form" @submit.prevent="changePassword">
         <label>
           Email
@@ -53,7 +56,10 @@ async function changePassword() {
         </label>
         <button type="submit">Change password</button>
       </form>
-      <NuxtLink class="text-link" to="/mfa">Get step-up token</NuxtLink>
+      <div class="inline-links">
+        <NuxtLink class="text-link" to="/mfa">Get step-up token</NuxtLink>
+        <NuxtLink class="text-link" to="/me">Back to my page</NuxtLink>
+      </div>
       <p v-if="error" class="error">{{ error }}</p>
       <p v-if="result" class="success">{{ result }}</p>
     </section>

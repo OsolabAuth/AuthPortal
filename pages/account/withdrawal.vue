@@ -29,9 +29,12 @@ async function withdraw() {
 
 <template>
   <main class="app-shell">
-    <section class="panel">
-      <p class="eyebrow">OsolabAuth</p>
-      <h1>Account withdrawal</h1>
+    <section class="panel auth-panel">
+      <header class="page-header">
+        <span class="brand-mark">OsolabAuth</span>
+        <h1>Delete account</h1>
+        <p class="page-copy">This operation requires your password and a recent step-up token.</p>
+      </header>
       <form class="form" @submit.prevent="withdraw">
         <label>
           Email
@@ -47,7 +50,10 @@ async function withdraw() {
         </label>
         <button type="submit">Withdraw account</button>
       </form>
-      <NuxtLink class="text-link" to="/mfa">Get step-up token</NuxtLink>
+      <div class="inline-links">
+        <NuxtLink class="text-link" to="/mfa">Get step-up token</NuxtLink>
+        <NuxtLink class="text-link" to="/me">Back to my page</NuxtLink>
+      </div>
       <p v-if="error" class="error">{{ error }}</p>
       <p v-if="result" class="success">{{ result }}</p>
     </section>

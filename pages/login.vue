@@ -27,9 +27,12 @@ async function submitLogin() {
 
 <template>
   <main class="app-shell">
-    <section class="panel">
-      <p class="eyebrow">OsolabAuth</p>
-      <h1>Login</h1>
+    <section class="panel auth-panel">
+      <header class="page-header">
+        <span class="brand-mark">OsolabAuth</span>
+        <h1>Sign in</h1>
+        <p class="page-copy">Use your OsolabAuth account to continue.</p>
+      </header>
       <form class="form" @submit.prevent="submitLogin">
         <label>
           Email
@@ -41,8 +44,24 @@ async function submitLogin() {
         </label>
         <button type="submit">Continue</button>
       </form>
-      <NuxtLink class="text-link" to="/signup">Create account</NuxtLink>
-      <NuxtLink class="text-link" to="/password/reset">Forgot password</NuxtLink>
+
+      <section class="section-block">
+        <h2 class="section-title">Need help?</h2>
+        <div class="link-grid">
+          <NuxtLink class="nav-card" to="/signup">
+            <strong>Create account</strong>
+            <span>Register with email verification.</span>
+          </NuxtLink>
+          <NuxtLink class="nav-card" to="/password/reset">
+            <strong>Reset password</strong>
+            <span>Use your login email and birth date.</span>
+          </NuxtLink>
+        </div>
+      </section>
+
+      <div class="inline-links">
+        <NuxtLink class="text-link" to="/">Back to portal home</NuxtLink>
+      </div>
       <p v-if="error" class="error">{{ error }}</p>
     </section>
   </main>

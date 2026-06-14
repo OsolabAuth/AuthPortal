@@ -2,7 +2,6 @@
 const config = useRuntimeConfig()
 const route = useRoute()
 const status = ref<'checking' | 'exchanging' | 'authenticated' | 'error'>('checking')
-const tokenResponse = ref('')
 const error = ref('')
 const exchanged = ref(false)
 
@@ -21,30 +20,11 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
   return JSON.parse(atob(padded))
 }
 
-function maskToken(value: unknown): unknown {
-  if (typeof value !== 'string') {
-    return value
-  }
-  if (value.length <= 16) {
-    return value
-  }
-  return `${value.slice(0, 8)}...${value.slice(-8)}`
-}
-
-function maskTokenResponse(body: Record<string, unknown>): Record<string, unknown> {
-  return {
-    ...body,
-    access_token: maskToken(body.access_token),
-    id_token: maskToken(body.id_token)
-  }
-}
-
 async function exchangeToken() {
   if (exchanged.value) {
     return
   }
   error.value = ''
-  tokenResponse.value = ''
   status.value = 'checking'
 
   if (!code.value) {
@@ -112,8 +92,8 @@ async function exchangeToken() {
   sessionStorage.removeItem('nonce')
   sessionStorage.setItem('auth_access_token', String(body.access_token || ''))
   sessionStorage.setItem('auth_id_token', idToken)
-  tokenResponse.value = JSON.stringify(maskTokenResponse(body), null, 2)
   status.value = 'authenticated'
+  await navigateTo('/me', { replace: true })
 }
 
 onMounted(() => {
@@ -123,24 +103,20 @@ onMounted(() => {
 
 <template>
   <main class="app-shell">
-    <section class="panel">
-      <p class="eyebrow">OsolabAuth</p>
-      <h1>Callback</h1>
-      <dl>
-        <dt>Code</dt>
-        <dd>{{ code ? 'received' : 'missing' }}</dd>
-        <dt>State</dt>
-        <dd>{{ stateMatches ? 'ok' : 'mismatch' }}</dd>
-        <dt>Status</dt>
-        <dd>{{ status }}</dd>
-      </dl>
-      <p v-if="status === 'checking'">Checking authorization response...</p>
-      <p v-if="status === 'exchanging'">Exchanging authorization code...</p>
-      <p v-if="status === 'authenticated'" class="success">Login complete. Token exchange succeeded.</p>
-      <NuxtLink v-if="status === 'authenticated'" class="text-link" to="/me">Open my page</NuxtLink>
-      <button v-if="status === 'error'" type="button" :disabled="!code || !stateMatches" @click="exchangeToken">Retry token exchange</button>
+    <section class="panel auth-panel">
+      <header class="page-header">
+        <span class="brand-mark">OsolabAuth</span>
+        <h1>Completing sign in</h1>
+        <p class="page-copy">You will be redirected to your account page when sign in finishes.</p>
+      </header>
+      <p v-if="status === 'checking'" class="notice">Checking authorization response...</p>
+      <p v-if="status === 'exchanging'" class="notice">Signing you in...</p>
+      <p v-if="status === 'authenticated'" class="success">Signed in. Opening your account page...</p>
+      <div v-if="status === 'error'" class="form-actions">
+        <button type="button" :disabled="!code || !stateMatches" @click="exchangeToken">Try again</button>
+        <NuxtLink class="secondary-action" to="/">Back to portal home</NuxtLink>
+      </div>
       <p v-if="error" class="error">{{ error }}</p>
-      <pre v-if="tokenResponse">{{ tokenResponse }}</pre>
     </section>
   </main>
 </template>

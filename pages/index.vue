@@ -40,13 +40,53 @@ async function startLogin() {
 
 <template>
   <main class="app-shell">
-    <section class="panel">
-      <p class="eyebrow">OsolabAuth</p>
-      <h1>OIDC Login</h1>
-      <p>Start Authorization Code + PKCE login.</p>
-      <button type="button" @click="startLogin">Login with OsolabAuth</button>
-      <NuxtLink class="text-link" to="/me">My page</NuxtLink>
-      <NuxtLink class="text-link" to="/agent">Manage AI agents</NuxtLink>
+    <section class="panel auth-panel">
+      <header class="page-header">
+        <div class="brand-line">
+          <span class="brand-mark">OsolabAuth</span>
+        </div>
+        <h1>Sign in to Osolab</h1>
+        <p class="page-copy">
+          Manage your account, security settings, and delegated AI agents from one place.
+        </p>
+      </header>
+
+      <div class="action-row">
+        <button type="button" @click="startLogin">Sign in with OsolabAuth</button>
+        <NuxtLink class="secondary-action" to="/login">Use email and password</NuxtLink>
+      </div>
+
+      <section class="section-block">
+        <h2 class="section-title">Account tools</h2>
+        <div class="link-grid">
+          <NuxtLink class="nav-card" to="/me">
+            <strong>My page</strong>
+            <span>Review profile and account actions.</span>
+          </NuxtLink>
+          <NuxtLink class="nav-card" to="/agent">
+            <strong>AI agents</strong>
+            <span>Manage delegated agent credentials.</span>
+          </NuxtLink>
+        </div>
+      </section>
+
+      <section class="section-block">
+        <h2 class="section-title">Related products</h2>
+        <div class="product-grid">
+          <a class="product-card" href="https://osolab.jp" target="_blank" rel="noreferrer">
+            <strong>Osolab</strong>
+            <span>Portfolio and service hub.</span>
+          </a>
+          <a class="product-card" href="https://taiga.osolab.jp" target="_blank" rel="noreferrer">
+            <strong>Taiga</strong>
+            <span>Project and task management.</span>
+          </a>
+          <a class="product-card" href="https://github.com/OsolabAuth" target="_blank" rel="noreferrer">
+            <strong>GitHub</strong>
+            <span>Source code and design history.</span>
+          </a>
+        </div>
+      </section>
       <p v-if="error" class="error">{{ error }}</p>
     </section>
   </main>

@@ -86,9 +86,12 @@ async function resetPassword() {
 
 <template>
   <main class="app-shell">
-    <section class="panel">
-      <p class="eyebrow">OsolabAuth</p>
-      <h1>Reset password</h1>
+    <section class="panel auth-panel">
+      <header class="page-header">
+        <span class="brand-mark">OsolabAuth</span>
+        <h1>Reset password</h1>
+        <p class="page-copy">Confirm your login email and birth date before setting a new password.</p>
+      </header>
       <form class="form" @submit.prevent="resetPassword">
         <label>
           Login email
@@ -120,6 +123,10 @@ async function resetPassword() {
           {{ resettingPassword ? 'Resetting...' : 'Reset password' }}
         </button>
       </form>
+      <div class="inline-links">
+        <NuxtLink class="text-link" to="/login">Back to sign in</NuxtLink>
+        <NuxtLink class="text-link" to="/">Portal home</NuxtLink>
+      </div>
       <p v-if="error" class="error">{{ error }}</p>
       <p v-if="result" class="success">{{ result }}</p>
     </section>

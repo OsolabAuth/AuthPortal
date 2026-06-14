@@ -95,9 +95,12 @@ async function verify(path: string, code: string) {
 
 <template>
   <main class="app-shell">
-    <section class="panel">
-      <p class="eyebrow">OsolabAuth</p>
-      <h1>MFA</h1>
+    <section class="panel auth-panel">
+      <header class="page-header">
+        <span class="brand-mark">OsolabAuth</span>
+        <h1>MFA</h1>
+        <p class="page-copy">Verify your identity before changing sensitive account settings.</p>
+      </header>
       <label>
         Email
         <input v-model="email" type="email" autocomplete="email" required>
@@ -134,6 +137,9 @@ async function verify(path: string, code: string) {
 
       <p v-if="error" class="error">{{ error }}</p>
       <pre v-if="stepUpToken">{{ stepUpToken }}</pre>
+      <div class="inline-links">
+        <NuxtLink class="text-link" to="/me">Back to my page</NuxtLink>
+      </div>
     </section>
   </main>
 </template>

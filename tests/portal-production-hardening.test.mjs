@@ -46,24 +46,27 @@ describe('Portal production hardening', () => {
   })
 
   /**
-   * Purpose: make the OIDC login flow complete without a manual token-exchange step.
+   * Purpose: make the OIDC login flow complete without exposing protocol internals to users.
    * Input: OIDC start and callback page sources.
-   * Expected: nonce is persisted, callback automatically exchanges the code, validates nonce, and masks tokens.
+   * Expected: nonce is persisted, callback automatically exchanges the code, validates nonce, stores session tokens, and redirects to my page.
    */
   it('automatically completes OIDC callback token exchange', () => {
     const index = readPage('pages/index.vue')
     const callback = readPage('pages/callback.vue')
 
     assert.match(index, /sessionStorage\.setItem\('nonce', nonce\)/)
+    assert.doesNotMatch(index, /Authorization Code \+ PKCE login/)
+    assert.match(index, /https:\/\/taiga\.osolab\.jp/)
+    assert.match(index, /https:\/\/github\.com\/OsolabAuth/)
     assert.match(callback, /onMounted\(\(\) => \{/)
     assert.match(callback, /void exchangeToken\(\)/)
     assert.match(callback, /sessionStorage\.getItem\('nonce'\)/)
     assert.match(callback, /payload\.nonce !== expectedNonce/)
     assert.match(callback, /sessionStorage\.setItem\('auth_access_token'/)
     assert.match(callback, /sessionStorage\.setItem\('auth_id_token'/)
-    assert.match(callback, /Login complete\. Token exchange succeeded\./)
-    assert.match(callback, /to="\/me"/)
-    assert.match(callback, /maskTokenResponse/)
+    assert.match(callback, /await navigateTo\('\/me', \{ replace: true \}\)/)
+    assert.doesNotMatch(callback, /maskTokenResponse/)
+    assert.doesNotMatch(callback, /<pre/)
     assert.doesNotMatch(callback, /Exchange token/)
   })
 
