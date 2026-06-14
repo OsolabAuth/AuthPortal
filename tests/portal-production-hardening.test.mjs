@@ -201,4 +201,30 @@ describe('Portal production hardening', () => {
     assert.match(page, /This access token is opaque and is validated server-side/)
     assert.match(page, /There is no JWT payload to decode/)
   })
+
+  /**
+   * Purpose: keep screen-first reverse engineering scenarios available for manual and automated QA.
+   * Input: screen test scenario document.
+   * Expected: major user-visible flows are described as executable scenarios.
+   */
+  it('documents screen-first reverse engineering scenarios', () => {
+    const scenarios = readPage('docs/screen-test-scenarios.md')
+
+    for (const id of [
+      'S001 OIDC Login Start',
+      'S004 Account Signup Happy Path',
+      'S005 Signup Repeated Email Send',
+      'S006 Password Reset Happy Path',
+      'S007 Password Reset Repeated Email Send',
+      'S009 My Page Requires Token',
+      'S010 MFA Email Step-up',
+      'S013 Logout',
+      'S014 AI Agent Creation'
+    ]) {
+      assert.match(scenarios, new RegExp(id))
+    }
+    assert.match(scenarios, /Do not treat implementation code as the source of truth/)
+    assert.match(scenarios, /Run date:/)
+    assert.match(scenarios, /Inferred spec update:/)
+  })
 })
