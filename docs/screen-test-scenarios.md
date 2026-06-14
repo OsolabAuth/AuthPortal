@@ -145,7 +145,7 @@ Target requirements: `REQ-PORTAL-002`, `REQ-PORTAL-003`, `REQ-PORTAL-004`
 Preconditions:
 
 - Use an email address that is not registered.
-- Mailbox is accessible.
+- Mailbox is accessible, or the API is running in Development and the email code can be read from application logs.
 - Current terms endpoint is available.
 
 Steps:
@@ -211,7 +211,7 @@ Preconditions:
 
 - A registered user exists.
 - User has a stored birth date.
-- Mailbox is accessible.
+- Mailbox is accessible, or the API is running in Development and the email code can be read from application logs.
 
 Steps:
 
@@ -326,7 +326,7 @@ Target requirements: `REQ-PORTAL-003`, `REQ-PORTAL-004`, `REQ-PORTAL-006`
 Preconditions:
 
 - Registered user exists.
-- Mailbox is accessible.
+- Mailbox is accessible, or the API is running in Development and the email code can be read from application logs.
 
 Steps:
 
