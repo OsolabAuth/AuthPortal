@@ -1,0 +1,42 @@
+name: Portal Quality Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "codex/**"
+  workflow_dispatch:
+
+jobs:
+  typecheck:
+    name: AuthPortal typecheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: npm install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Publish quality summary
+        run: |
+          cat <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          ## AuthPortal Quality
+
+          | Check | Result |
+          | --- | --- |
+          | Typecheck | Passed |
+          | Unit test coverage | Not configured yet |
+
+          AuthPortal currently has no unit test runner or coverage script. UI quality is checked with typecheck in this workflow; unit test and coverage setup should be added in a follow-up PR.
+          EOF
