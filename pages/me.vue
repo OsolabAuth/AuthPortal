@@ -6,33 +6,6 @@ const error = ref('')
 
 const hasAccessToken = computed(() => import.meta.client && Boolean(sessionStorage.getItem('auth_access_token')))
 const profileDisplayName = computed(() => String(profile.value?.name || 'OsolabAuth account'))
-const extraProfileFields = computed(() => {
-  if (!profile.value) {
-    return []
-  }
-
-  const primaryKeys = new Set(['sub', 'email', 'name'])
-  return Object.entries(profile.value)
-    .filter(([key]) => !primaryKeys.has(key))
-    .map(([key, value]) => ({
-      key,
-      label: key.replaceAll('_', ' '),
-      value: formatProfileValue(value)
-    }))
-})
-
-function formatProfileValue(value: unknown): string {
-  if (value === null || value === undefined || value === '') {
-    return '-'
-  }
-  if (Array.isArray(value)) {
-    return value.map(formatProfileValue).join(', ')
-  }
-  if (typeof value === 'object') {
-    return JSON.stringify(value)
-  }
-  return String(value)
-}
 
 async function loadProfile() {
   error.value = ''
@@ -46,7 +19,8 @@ async function loadProfile() {
 
   loading.value = true
   try {
-    const response = await fetch(`${config.public.authApiBase}/userinfo`, {
+    const response = await fetch(`${config.public.authApiBase}/account/profile`, {
+      credentials: 'include',
       headers: {
         Authorization: `Bearer ${accessToken}`
       }
@@ -75,78 +49,85 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="app-shell">
-    <section class="panel panel-wide auth-panel">
-      <header class="page-header">
+  <main class="mypage-shell">
+    <header class="mypage-header">
+      <div>
         <span class="brand-mark">OsolabAuth</span>
-        <h1>My page</h1>
-        <p class="page-copy">Review your profile and manage account security from this dashboard.</p>
-      </header>
+        <h1>マイページ</h1>
+        <p v-if="profile" class="page-copy">{{ profileDisplayName }} さんのアカウントメニュー</p>
+        <p v-else class="page-copy">ログインすると会員情報とセキュリティ設定を管理できます。</p>
+      </div>
+      <NuxtLink v-if="hasAccessToken" class="mypage-logout" to="/logout">ログアウト</NuxtLink>
+    </header>
 
-      <p v-if="loading" class="notice">Loading profile...</p>
+    <section class="mypage-card">
+      <p v-if="loading" class="notice">ユーザー情報を確認しています。</p>
       <p v-if="error" class="error">{{ error }}</p>
 
-      <template v-if="profile">
-        <section class="profile-hero">
-          <div>
-            <p class="profile-name">{{ profileDisplayName }}</p>
-            <p class="profile-email">{{ profile.email || 'No email claim' }}</p>
-          </div>
-          <span class="profile-status">Signed in</span>
-        </section>
+      <div v-if="!hasAccessToken" class="signin-panel">
+        <h2>ログインが必要です</h2>
+        <p class="page-copy">OsolabAuthにログインしてからマイページを利用してください。</p>
+        <NuxtLink class="primary-action" to="/">ログインへ進む</NuxtLink>
+      </div>
 
-        <section class="section-block">
-          <h2 class="section-title">Profile</h2>
-          <div class="profile-grid">
-            <div class="field-card">
-              <span>Subject</span>
-              <strong>{{ profile.sub }}</strong>
-            </div>
-            <div class="field-card">
-              <span>Email</span>
-              <strong>{{ profile.email || '-' }}</strong>
-            </div>
-            <div class="field-card">
-              <span>Name</span>
-              <strong>{{ profile.name || '-' }}</strong>
-            </div>
-            <div v-for="field in extraProfileFields" :key="field.key" class="field-card">
-              <span>{{ field.label }}</span>
-              <strong>{{ field.value }}</strong>
-            </div>
-          </div>
-        </section>
-      </template>
+      <template v-else>
+        <div class="menu-grid">
+          <section class="menu-section">
+            <h2 class="menu-heading">
+              <span class="menu-heading-icon account-icon" aria-hidden="true" />
+              会員メニュー
+            </h2>
+            <nav class="menu-list" aria-label="会員メニュー">
+              <NuxtLink class="menu-link" to="/account/profile">
+                <span>会員情報照会・変更</span>
+                <span class="menu-arrow" aria-hidden="true">›</span>
+              </NuxtLink>
+              <NuxtLink class="menu-link" to="/agent">
+                <span>AIエージェント管理</span>
+                <span class="menu-arrow" aria-hidden="true">›</span>
+              </NuxtLink>
+            </nav>
+          </section>
 
-      <section class="section-block">
-        <h2 class="section-title">Account actions</h2>
-        <div class="action-grid">
-          <NuxtLink v-if="!hasAccessToken" class="action-card" to="/">
-            <strong>Sign in</strong>
-            <span>Start a new authentication session.</span>
-          </NuxtLink>
-          <NuxtLink class="action-card" to="/mfa">
-            <strong>MFA</strong>
-            <span>Issue a step-up token or set up authenticator MFA.</span>
-          </NuxtLink>
-          <NuxtLink class="action-card" to="/password/change">
-            <strong>Change password</strong>
-            <span>Update your password after step-up verification.</span>
-          </NuxtLink>
-          <NuxtLink class="action-card" to="/agent">
-            <strong>AI agents</strong>
-            <span>Manage delegated AI agent access.</span>
-          </NuxtLink>
-          <NuxtLink class="action-card" to="/logout">
-            <strong>Logout</strong>
-            <span>End this browser session.</span>
-          </NuxtLink>
-          <NuxtLink class="action-card" to="/account/withdrawal">
-            <strong>Delete account</strong>
-            <span>Withdraw your account after step-up verification.</span>
-          </NuxtLink>
+          <section class="menu-section">
+            <h2 class="menu-heading">
+              <span class="menu-heading-icon settings-icon" aria-hidden="true" />
+              アカウント設定
+            </h2>
+            <nav class="menu-list" aria-label="アカウント設定">
+              <NuxtLink class="menu-link" to="/mfa">
+                <span>認証設定</span>
+                <span class="menu-arrow" aria-hidden="true">›</span>
+              </NuxtLink>
+              <NuxtLink class="menu-link" to="/password/change">
+                <span>パスワード変更</span>
+                <span class="menu-arrow" aria-hidden="true">›</span>
+              </NuxtLink>
+              <NuxtLink class="menu-link" to="/password/reset">
+                <span>パスワードリセット</span>
+                <span class="menu-arrow" aria-hidden="true">›</span>
+              </NuxtLink>
+            </nav>
+          </section>
+
+          <section class="menu-section">
+            <h2 class="menu-heading">
+              <span class="menu-heading-icon other-icon" aria-hidden="true" />
+              その他
+            </h2>
+            <nav class="menu-list" aria-label="その他">
+              <NuxtLink class="menu-link" to="/logout">
+                <span>ログアウト</span>
+                <span class="menu-arrow" aria-hidden="true">›</span>
+              </NuxtLink>
+              <NuxtLink class="menu-link danger-link" to="/account/withdrawal">
+                <span>退会</span>
+                <span class="menu-arrow" aria-hidden="true">›</span>
+              </NuxtLink>
+            </nav>
+          </section>
         </div>
-      </section>
+      </template>
     </section>
   </main>
 </template>
